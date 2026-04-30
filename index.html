@@ -226,7 +226,7 @@
     <div class="field"><label>Descripción</label><textarea id="task-desc" placeholder="Detalles opcionales..."></textarea></div>
     <div class="field"><label>Fecha límite</label><input type="date" id="task-due"/></div>
     <div class="field"><label>Prioridad</label>
-      <select id="task-priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select>
+      <select id="task-priority"><option value="Baja">Baja</option><option value="Media" selected>Media</option><option value="Alta">Alta</option></select>
     </div>
     <button class="btn btn-primary" onclick="saveTask()">Crear tarea</button>
   </div>
@@ -519,7 +519,7 @@ async function renderDashboard(){
         tasks.slice(0,4).map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8f8f8">
           <button onclick="toggleTaskDash('${t.id}',this)" style="width:20px;height:20px;border-radius:50%;border:1.5px solid var(--bg3);background:transparent;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s"></button>
           <span style="font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</span>
-          <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${t.priority==='high'?'var(--red)':t.priority==='medium'?'var(--amber)':'var(--text3)'}"></div>
+          <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${['high','Alta'].includes(t.priority)?'var(--red)':['medium','Media'].includes(t.priority)?'var(--amber)':'var(--text3)'}"></div>
         </div>`).join('')+
         (tasks.length>4?`<p style="font-size:11px;color:var(--text3);margin-top:8px">+${tasks.length-4} más</p>`:'')}
     </div>
@@ -759,13 +759,11 @@ async function renderNutrition(){
       let ch=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <span style="font-size:13px;font-weight:600">${mt.label}</span>
         <span style="font-size:11px;color:var(--text3)">${tm.reduce((a,m)=>a+(m.calories||0),0)} kcal</span></div>`;
+      card.innerHTML=ch;
       tm.forEach(meal=>{
         const row=document.createElement('div');
         row.className='row-item';
-        row.innerHTML=`<div style="flex:1;min-width:0">
-          <div class="row-name">${meal.name}</div>
-          <div class="row-sub">${meal.protein}g P · ${meal.carbs}g C · ${meal.fat}g G</div></div>
-          <span style="font-size:13px;font-weight:600;color:var(--text2);margin-right:4px">${meal.calories}</span>`;
+        row.innerHTML='<div style="flex:1;min-width:0"><div class="row-name">'+meal.name+'</div><div class="row-sub">'+meal.protein+'g P · '+meal.carbs+'g C · '+meal.fat+'g G</div></div><span style="font-size:13px;font-weight:600;color:var(--text2);margin-right:4px">'+meal.calories+'</span>';
         const editBtn=document.createElement('button');
         editBtn.style.cssText='background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px';
         editBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
@@ -775,9 +773,8 @@ async function renderNutrition(){
         delBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
         delBtn.onclick=()=>delMeal(meal.id,meal.name);
         row.appendChild(editBtn);row.appendChild(delBtn);
-        card.innerHTML=ch;card.appendChild(row);ch='';
+        card.appendChild(row);
       });
-      if(ch)card.innerHTML+=ch;
       ml.appendChild(card);
     });
     if(!mealsFound)ml.innerHTML='<div class="empty"><div class="empty-icon">🍽️</div><p>Sin registros para este día</p></div>';
@@ -1024,7 +1021,7 @@ async function renderTasks(){
   S.tasks=tasks;
   const f=S.taskFilter;
   const filtered=tasks.filter(t=>f==='pending'?!t.completed:f==='completed'?t.completed:true);
-  const pc={high:{label:'Alta',cls:'badge-red'},medium:{label:'Media',cls:'badge-amber'},low:{label:'Baja',cls:'badge-purple'}};
+  const pc={'Alta':{label:'Alta',cls:'badge-red'},'Media':{label:'Media',cls:'badge-amber'},'Baja':{label:'Baja',cls:'badge-purple'},high:{label:'Alta',cls:'badge-red'},medium:{label:'Media',cls:'badge-amber'},low:{label:'Baja',cls:'badge-purple'}};
   el.innerHTML=`
     <div class="page-header">
       <div><h1 class="page-title">Tareas</h1></div>
