@@ -803,42 +803,51 @@ async function renderHabits(){
   const active=habits.filter(h=>h.is_active);
   const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split('T')[0];});
   const dayLetters=days.map(d=>['D','L','M','X','J','V','S'][new Date(d+'T12:00:00').getDay()]);
-  el.innerHTML=`
-    <div class="page-header">
-      <div><h1 class="page-title">Hábitos</h1></div>
-      <button onclick="openModal('modal-habit')" style="padding:7px 12px;background:var(--purple-bg);border:none;border-radius:10px;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Nuevo</button>
-    </div>
-    ${active.length===0?`<div class="empty"><div class="empty-icon">✅</div><p>Crea tu primer hábito</p></div>`:
-      active.map(h=>{
-        let streak=0;const sorted=[...days].reverse();
-        for(const d of sorted){if(logs.some(l=>l.habit_id===h.id&&l.date===d))streak++;else break;}
-        return\`<div class="card" style="margin-bottom:10px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:20px">\${h.icon||'✨'}</span>
-              <span style="font-size:15px;font-weight:600">\${h.name}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:13px;font-weight:700;color:var(--green)">\${streak}🔥</span>
-              <button onclick="delHabit('\${h.id}')" class="row-del"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
-            \${days.map((d,i)=>{
-              const done=logs.some(l=>l.habit_id===h.id&&l.date===d);
-              const isToday=d===today;
-              return\\`<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-                <span style="font-size:9px;color:var(--text3)">\\${dayLetters[i]}</span>
-                <span style="font-size:10px;color:\\${isToday?'var(--blue)':'var(--text2)'};\\${isToday?'font-weight:700':''}">\\${new Date(d+'T12:00:00').getDate()}</span>
-                <button onclick="toggleHabitLog('\\${h.id}','\\${d}')" class="habit-cell \\${done?'done':''} \\${isToday&&!done?'today-cell':''}">
-                  \\${done?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}
-                </button>
-              </div>\\`;
-            }).join('')}
-          </div>
-        </div>\`;
-      }).join('')}`;
+
+  let header = '<div class="page-header"><div><h1 class="page-title">Hábitos</h1></div>';
+  header += '<button onclick="openModal('modal-habit')" style="padding:7px 12px;background:var(--purple-bg);border:none;border-radius:10px;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Nuevo</button></div>';
+
+  if(active.length===0){
+    el.innerHTML=header+'<div class="empty"><div class="empty-icon">✅</div><p>Crea tu primer hábito</p></div>';
+    return;
+  }
+
+  let html = header;
+  active.forEach(h=>{
+    let streak=0;
+    const sorted=[...days].reverse();
+    for(const d of sorted){if(logs.some(l=>l.habit_id===h.id&&l.date===d))streak++;else break;}
+
+    html += '<div class="card" style="margin-bottom:10px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+    html += '<div style="display:flex;align-items:center;gap:8px">';
+    html += '<span style="font-size:20px">'+(h.icon||'✨')+'</span>';
+    html += '<span style="font-size:15px;font-weight:600">'+h.name+'</span>';
+    html += '</div>';
+    html += '<div style="display:flex;align-items:center;gap:10px">';
+    html += '<span style="font-size:13px;font-weight:700;color:var(--green)">'+streak+'🔥</span>';
+    html += '<button onclick="delHabit(''+h.id+'')" class="row-del"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+    html += '</div></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+    days.forEach((d,i)=>{
+      const done=logs.some(l=>l.habit_id===h.id&&l.date===d);
+      const isToday=d===today;
+      const dayNum=new Date(d+'T12:00:00').getDate();
+      let cellClass='habit-cell';
+      if(done)cellClass+=' done';
+      else if(isToday)cellClass+=' today-cell';
+      const checkSvg=done?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'';
+      html += '<div style="display:flex;flex-direction:column;align-items:center;gap:3px">';
+      html += '<span style="font-size:9px;color:var(--text3)">'+dayLetters[i]+'</span>';
+      html += '<span style="font-size:10px;color:'+(isToday?'var(--blue)':'var(--text2)')+(isToday?';font-weight:700':'')+'">'+(dayNum)+'</span>';
+      html += '<button onclick="toggleHabitLog(''+h.id+'',''+d+'')" class="'+cellClass+'">'+checkSvg+'</button>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  el.innerHTML=html;
 }
+
 async function toggleHabitLog(habitId,date){
   const ex=S.habitLogs.find(l=>l.habit_id===habitId&&l.date===date);
   if(ex){await db.delete('habit_logs',ex.id);S.habitLogs=S.habitLogs.filter(l=>l.id!==ex.id);}
