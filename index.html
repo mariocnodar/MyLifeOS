@@ -804,8 +804,8 @@ async function renderHabits(){
   const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split('T')[0];});
   const dayLetters=days.map(d=>['D','L','M','X','J','V','S'][new Date(d+'T12:00:00').getDay()]);
 
-  let header = '<div class="page-header"><div><h1 class="page-title">Hábitos</h1></div>';
-  header += '<button onclick="openModal('modal-habit')" style="padding:7px 12px;background:var(--purple-bg);border:none;border-radius:10px;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Nuevo</button></div>';
+  let header = '<div class="page-header"><div><h1 class="page-title">H\u00e1bitos</h1></div>';
+  header += '<button onclick="openModal(\'modal-habit\')" style="padding:7px 12px;background:var(--purple-bg);border:none;border-radius:10px;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\'">+ Nuevo</button></div>';
 
   if(active.length===0){
     el.innerHTML=header+'<div class="empty"><div class="empty-icon">✅</div><p>Crea tu primer hábito</p></div>';
@@ -826,7 +826,7 @@ async function renderHabits(){
     html += '</div>';
     html += '<div style="display:flex;align-items:center;gap:10px">';
     html += '<span style="font-size:13px;font-weight:700;color:var(--green)">'+streak+'🔥</span>';
-    html += '<button onclick="delHabit(''+h.id+'')" class="row-del"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+    html += '<button onclick="delHabit(\''+h.id+'\')" class="row-del"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
     html += '</div></div>';
     html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
     days.forEach((d,i)=>{
@@ -840,7 +840,7 @@ async function renderHabits(){
       html += '<div style="display:flex;flex-direction:column;align-items:center;gap:3px">';
       html += '<span style="font-size:9px;color:var(--text3)">'+dayLetters[i]+'</span>';
       html += '<span style="font-size:10px;color:'+(isToday?'var(--blue)':'var(--text2)')+(isToday?';font-weight:700':'')+'">'+(dayNum)+'</span>';
-      html += '<button onclick="toggleHabitLog(''+h.id+'',''+d+'')" class="'+cellClass+'">'+checkSvg+'</button>';
+      html += '<button onclick="toggleHabitLog(\''+h.id+'\',\''+d+'\')" class="'+cellClass+'">'+checkSvg+'</button>';
       html += '</div>';
     });
     html += '</div></div>';
