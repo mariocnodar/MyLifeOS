@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1.0"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-  <meta name="apple-mobile-web-app-title" content="Nexus OS"/>
+  <meta name="apple-mobile-web-app-title" content="Life OS"/>
   <meta name="theme-color" content="#ffffff"/>
-  <title>Nexus OS</title>
+  <title>Life OS</title>
   <link rel="apple-touch-icon" href="/icon.png"/>
   <link rel="icon" type="image/png" href="/icon.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -315,12 +315,12 @@
       <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
       <span class="nav-label">Hábitos</span>
     </button>
-    <button class="nav-item" id="nav-tasks" onclick="switchPage('tasks')">
-      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
-      <span class="nav-label">Tareas</span>
+    <button class="nav-item" id="nav-exercise" onclick="switchPage('exercise')">
+      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+      <span class="nav-label">Ejercicio</span>
     </button>
-    <button class="nav-item" id="nav-trips" onclick="switchPage('trips')">
-      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+    <button class="nav-item" id="nav-more" onclick="switchPage('trips')">
+      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></div>
       <span class="nav-label">Más</span>
     </button>
   </div>
@@ -418,7 +418,7 @@ function undoDelete(){
 function switchPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('[id^="view-"]').forEach(v=>v.style.display='none');
-  const navMap={dashboard:'nav-dashboard',finances:'nav-finances',nutrition:'nav-nutrition',habits:'nav-habits',tasks:'nav-tasks',trips:'nav-trips',exercise:'nav-trips',settings:'nav-trips'};
+  const navMap={dashboard:'nav-dashboard',finances:'nav-finances',nutrition:'nav-nutrition',habits:'nav-habits',exercise:'nav-exercise',trips:'nav-more',tasks:'nav-more',settings:'nav-more'};
   document.getElementById(navMap[page]||'nav-trips')?.classList.add('active');
   document.getElementById(`view-${page}`).style.display='block';
   S.page=page;renderPage(page);
@@ -476,7 +476,7 @@ async function renderDashboard(){
 
   el.innerHTML=`
     <div class="page-header">
-      <div><h1 class="page-title">Nexus OS</h1><p class="page-sub">${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}</p></div>
+      <div><h1 class="page-title">Life OS</h1><p class="page-sub">${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}</p></div>
       <button onclick="switchPage('settings')" style="width:36px;height:36px;background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -801,7 +801,6 @@ async function renderHabits(){
   const [habits,logs]=await Promise.all([db.get('habits',{order:'created_at.asc'}),db.get('habit_logs',{order:'date.desc',limit:500})]);
   S.habits=habits;S.habitLogs=logs;
   const active=habits.filter(h=>h.is_active);
-  // Show last 7 days only (fits screen)
   const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split('T')[0];});
   const dayLetters=days.map(d=>['D','L','M','X','J','V','S'][new Date(d+'T12:00:00').getDay()]);
   el.innerHTML=`
@@ -809,39 +808,36 @@ async function renderHabits(){
       <div><h1 class="page-title">Hábitos</h1></div>
       <button onclick="openModal('modal-habit')" style="padding:7px 12px;background:var(--purple-bg);border:none;border-radius:10px;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Nuevo</button>
     </div>
-    ${active.length===0?`<div class="empty"><div class="empty-icon">✅</div><p>Crea tu primer hábito</p></div>`:`
-    <div class="card" style="margin-bottom:20px">
-      <div style="display:grid;grid-template-columns:1fr repeat(7,32px) 40px 28px;gap:2px;align-items:center;margin-bottom:8px">
-        <div style="font-size:10px;color:var(--text3);font-weight:600">Hábito</div>
-        ${days.map((d,i)=>`<div style="text-align:center">
-          <div style="font-size:9px;color:var(--text3)">${dayLetters[i]}</div>
-          <div style="font-size:10px;font-weight:${d===today?'700':'400'};color:${d===today?'var(--blue)':'var(--text2)'}">${new Date(d+'T12:00:00').getDate()}</div>
-        </div>`).join('')}
-        <div style="text-align:center;font-size:10px;color:var(--text3)">Racha</div>
-        <div></div>
-      </div>
-      ${active.map(h=>{
+    ${active.length===0?`<div class="empty"><div class="empty-icon">✅</div><p>Crea tu primer hábito</p></div>`:
+      active.map(h=>{
         let streak=0;const sorted=[...days].reverse();
         for(const d of sorted){if(logs.some(l=>l.habit_id===h.id&&l.date===d))streak++;else break;}
-        return`<div style="display:grid;grid-template-columns:1fr repeat(7,32px) 40px 28px;gap:2px;align-items:center;padding:6px 0;border-top:1px solid #f8f8f8">
-          <div style="display:flex;align-items:center;gap:6px;min-width:0">
-            <span style="font-size:14px;flex-shrink:0">${h.icon||'✨'}</span>
-            <span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.name}</span>
+        return\`<div class="card" style="margin-bottom:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:20px">\${h.icon||'✨'}</span>
+              <span style="font-size:15px;font-weight:600">\${h.name}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:13px;font-weight:700;color:var(--green)">\${streak}🔥</span>
+              <button onclick="delHabit('\${h.id}')" class="row-del"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+            </div>
           </div>
-          ${days.map(d=>{
-            const done=logs.some(l=>l.habit_id===h.id&&l.date===d);
-            const isToday=d===today;
-            return`<div style="display:flex;justify-content:center">
-              <button onclick="toggleHabitLog('${h.id}','${d}')" class="habit-cell ${done?'done':''} ${isToday&&!done?'today-cell':''}">
-                ${done?`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`:''}
-              </button>
-            </div>`;
-          }).join('')}
-          <div style="text-align:center;font-size:13px;font-weight:700;color:var(--green)">${streak}🔥</div>
-          <button onclick="delHabit('${h.id}')" class="row-del"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
-        </div>`;
-      }).join('')}
-    </div>`}`;
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+            \${days.map((d,i)=>{
+              const done=logs.some(l=>l.habit_id===h.id&&l.date===d);
+              const isToday=d===today;
+              return\\`<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                <span style="font-size:9px;color:var(--text3)">\\${dayLetters[i]}</span>
+                <span style="font-size:10px;color:\\${isToday?'var(--blue)':'var(--text2)'};\\${isToday?'font-weight:700':''}">\\${new Date(d+'T12:00:00').getDate()}</span>
+                <button onclick="toggleHabitLog('\\${h.id}','\\${d}')" class="habit-cell \\${done?'done':''} \\${isToday&&!done?'today-cell':''}">
+                  \\${done?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}
+                </button>
+              </div>\\`;
+            }).join('')}
+          </div>
+        </div>\`;
+      }).join('')}`;
 }
 async function toggleHabitLog(habitId,date){
   const ex=S.habitLogs.find(l=>l.habit_id===habitId&&l.date===date);
@@ -912,10 +908,9 @@ async function renderTrips(){
     <div class="page-header">
       <div><h1 class="page-title">Más</h1></div>
     </div>
-    <!-- Quick access to exercise & settings -->
     <div class="grid2" style="margin-bottom:16px">
-      <button onclick="switchPage('exercise')" style="padding:16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;cursor:pointer;font-family:'DM Sans';font-size:13px;font-weight:500;color:var(--text);text-align:left">
-        <div style="font-size:22px;margin-bottom:6px">💪</div>Ejercicio
+      <button onclick="switchPage('tasks')" style="padding:16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;cursor:pointer;font-family:'DM Sans';font-size:13px;font-weight:500;color:var(--text);text-align:left">
+        <div style="font-size:22px;margin-bottom:6px">📋</div>Tareas
       </button>
       <button onclick="switchPage('settings')" style="padding:16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;cursor:pointer;font-family:'DM Sans';font-size:13px;font-weight:500;color:var(--text);text-align:left">
         <div style="font-size:22px;margin-bottom:6px">⚙️</div>Ajustes
@@ -1094,7 +1089,7 @@ async function saveMeal(){
   btn.disabled=true;btn.textContent='Analizando con IA...';
   let cal=200,pro=10,car=20,fat=8;
   try{
-    const r=await fetch('/api/nutrition',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({food:name})});
+    const r=await fetch('/api/nutrition',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({food:name,multi:true})});
     if(r.ok){const m=await r.json();cal=m.calories||200;pro=m.protein||10;car=m.carbs||20;fat=m.fat||8;}
   }catch(e){console.error(e);}
   await db.insert('meals',{name,meal_type:mealType,date,calories:Math.round(cal),protein:Math.round(pro),carbs:Math.round(car),fat:Math.round(fat)});
@@ -1176,8 +1171,20 @@ async function saveSettings(){
     }
   }
   S.settings=null;
+  await checkAndAddSalary(salary, payday);
   const btn=document.getElementById('save-settings-btn');
   if(btn){btn.textContent='✓ Guardado';btn.style.background='var(--green)';setTimeout(()=>{btn.textContent='Guardar ajustes';btn.style.background='';},2000);}
+}
+
+async function checkAndAddSalary(salary, payday){
+  if(!salary||salary<=0)return;
+  const now=new Date();const pad=n=>String(n).padStart(2,'0');
+  const salaryDate=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(Math.min(payday,28))}`;
+  const existing=await db.get('transactions',{filter:{date:salaryDate,category:'Salario',type:'income'}});
+  if(!existing||existing.length===0){
+    await db.insert('transactions',{type:'income',amount:salary,category:'Salario',description:'Sueldo mensual',date:salaryDate,is_recurring:true});
+    S.transactions=[];
+  }
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -1207,7 +1214,15 @@ async function ensureSettingsColumns(){
   }catch(e){}
 }
 ensureSettingsColumns();
-renderDashboard();
+async function initApp(){
+  await renderDashboard();
+  // Check salary on app open
+  const s=await db.get('user_settings',{order:'created_at.desc',limit:1});
+  if(s[0]?.monthly_salary&&s[0]?.payday){
+    await checkAndAddSalary(s[0].monthly_salary,s[0].payday);
+  }
+}
+initApp();
 </script>
 </body>
 </html>
