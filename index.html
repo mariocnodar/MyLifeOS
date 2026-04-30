@@ -790,31 +790,67 @@ async function renderNutrition(){
     const allMeals=await db.get('meals',{gte:{date:y+'-'+pad(m+1)+'-01'},lte:{date:y+'-'+pad(m+1)+'-'+pad(daysInMonth)}});
     const byDate={};allMeals.forEach(meal=>{if(!byDate[meal.date])byDate[meal.date]=0;byDate[meal.date]+=(meal.calories||0);});
     const MESES_ES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    let calHtml=`<div class="card" style="margin-bottom:10px">
-      <p style="font-size:14px;font-weight:700;text-align:center;margin-bottom:12px">${MESES_ES[m]} ${y}</p>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px">
-        ${['L','M','X','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:10px;color:var(--text3);font-weight:600;padding:4px">${d}</div>`).join('')}
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
-        ${Array(startOffset).fill('<div></div>').join('')}
-        ${Array.from({length:daysInMonth},(_,idx)=>{
-          const d=idx+1;const dateStr=y+'-'+pad(m+1)+'-'+pad(d);
-          const cals=byDate[dateStr]||0;const isToday=dateStr===today;
-          let bg='transparent';let color='var(--text)';
-          if(cals>0){const diff=cals-calGoal;if(Math.abs(diff)<=50){bg='rgba(217,119,6,0.15)';color='var(--amber)';}else if(diff<0){bg='rgba(26,158,110,0.15)';color='var(--green)';}else{bg='rgba(220,38,38,0.15)';color='var(--red)';}}
-          return \`<div style="display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:8px;background:\${bg};border:\${isToday?'1.5px solid var(--blue)':'1px solid transparent'}">
-            <span style="font-size:11px;font-weight:\${isToday?700:400};color:\${cals>0?color:isToday?'var(--blue)':'var(--text2)'}">\${d}</span>
-            \${cals>0?'<span style="font-size:8px;color:'+color+';font-weight:600">'+cals+'</span>':''}
-          </div>\`;
-        }).join('')}
-      </div>
-      <div style="display:flex;gap:12px;margin-top:12px;justify-content:center">
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div><span style="font-size:10px;color:var(--text2)">Déficit</span></div>
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:var(--amber)"></div><span style="font-size:10px;color:var(--text2)">±50 kcal</span></div>
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:50%;background:var(--red)"></div><span style="font-size:10px;color:var(--text2)">Superávit</span></div>
-      </div>
-    </div>`;
-    nc.innerHTML=calHtml;
+
+    // Build calendar using DOM - no nested template literals
+    const calDiv=document.createElement('div');
+    calDiv.className='card';calDiv.style.marginBottom='10px';
+
+    // Title
+    const title=document.createElement('p');
+    title.style.cssText='font-size:14px;font-weight:700;text-align:center;margin-bottom:12px';
+    title.textContent=MESES_ES[m]+' '+y;
+    calDiv.appendChild(title);
+
+    // Day headers
+    const hgrid=document.createElement('div');
+    hgrid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px';
+    ['L','M','X','J','V','S','D'].forEach(dl=>{
+      const dh=document.createElement('div');
+      dh.style.cssText='text-align:center;font-size:10px;color:var(--text3);font-weight:600;padding:4px';
+      dh.textContent=dl;hgrid.appendChild(dh);
+    });
+    calDiv.appendChild(hgrid);
+
+    // Days grid
+    const dgrid=document.createElement('div');
+    dgrid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:3px';
+    for(let i=0;i<startOffset;i++){const blank=document.createElement('div');dgrid.appendChild(blank);}
+    for(let d=1;d<=daysInMonth;d++){
+      const dateStr=y+'-'+pad(m+1)+'-'+pad(d);
+      const cals=byDate[dateStr]||0;const isToday=dateStr===today;
+      let bg='transparent';let color='var(--text2)';
+      if(cals>0){
+        const diff=cals-calGoal;
+        if(Math.abs(diff)<=50){bg='rgba(217,119,6,0.15)';color='var(--amber)';}
+        else if(diff<0){bg='rgba(26,158,110,0.15)';color='var(--green)';}
+        else{bg='rgba(220,38,38,0.15)';color='var(--red)';}
+      }
+      const cell=document.createElement('div');
+      cell.style.cssText='display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:8px;background:'+bg+';border:'+(isToday?'1.5px solid var(--blue)':'1px solid transparent');
+      const daySpan=document.createElement('span');
+      daySpan.style.cssText='font-size:11px;font-weight:'+(isToday?'700':'400')+';color:'+(cals>0?color:(isToday?'var(--blue)':'var(--text2)'));
+      daySpan.textContent=d;
+      cell.appendChild(daySpan);
+      if(cals>0){const calSpan=document.createElement('span');calSpan.style.cssText='font-size:8px;color:'+color+';font-weight:600';calSpan.textContent=cals;cell.appendChild(calSpan);}
+      dgrid.appendChild(cell);
+    }
+    calDiv.appendChild(dgrid);
+
+    // Legend
+    const legend=document.createElement('div');
+    legend.style.cssText='display:flex;gap:12px;margin-top:12px;justify-content:center';
+    [['var(--green)','Déficit'],['var(--amber)','±50 kcal'],['var(--red)','Superávit']].forEach(([col,lbl])=>{
+      const item=document.createElement('div');
+      item.style.cssText='display:flex;align-items:center;gap:4px';
+      const dot=document.createElement('div');
+      dot.style.cssText='width:10px;height:10px;border-radius:50%;background:'+col;
+      const txt=document.createElement('span');
+      txt.style.cssText='font-size:10px;color:var(--text2)';
+      txt.textContent=lbl;
+      item.appendChild(dot);item.appendChild(txt);legend.appendChild(item);
+    });
+    calDiv.appendChild(legend);
+    nc.appendChild(calDiv);
 
   } else if(tab==='consulta'){
     nc.innerHTML=`<div class="card" style="margin-bottom:10px">
