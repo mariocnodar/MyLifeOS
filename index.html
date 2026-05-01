@@ -456,7 +456,7 @@ let S={
   page:'dashboard',tasks:[],transactions:[],habits:[],habitLogs:[],
   meals:[],exercises:[],trips:[],settings:null,
   editingTrip:null,editingMacroMeal:null,
-  financeTab:'resumen',nutritionTab:'hoy',taskFilter:'pending',nutritionDate:today,
+  financeTab:'resumen',subFinanceTab:'todos',nutritionTab:'hoy',taskFilter:'pending',nutritionDate:today,nutCalYear:new Date().getFullYear(),nutCalMonth:new Date().getMonth(),
   calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),
   undoStack:null,undoTimer:null
 };
@@ -543,9 +543,18 @@ async function renderDashboard(){
   const income=ptxs.filter(t=>t.type==='income').reduce((a,t)=>a+(t.amount||0),0);
   const savings=ptxs.filter(t=>t.type==='expense'&&t.category==='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
   const expenses=ptxs.filter(t=>t.type==='expense'&&t.category!=='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
-  const available=income-expenses-savings;
+  const registeredRecurringKeys=ptxs.filter(t=>t.type==='expense'&&t.is_recurring&&t.category!=='Ahorro / Inversión').map(t=>t.category+'|'+(t.description||''));
+  const allRecurring=S.transactions.filter(t=>t.is_recurring&&t.type==='expense'&&t.category!=='Ahorro / Inversión');
+  const seen=new Set();const recurringTemplates=[];
+  allRecurring.forEach(t=>{const k=t.category+'|'+(t.description||'');if(!seen.has(k)){seen.add(k);recurringTemplates.push(t);}});
+  const pendingRecurring=recurringTemplates.filter(t=>!registeredRecurringKeys.includes(t.category+'|'+(t.description||'')));
+  const pendingAmount=pendingRecurring.reduce((a,t)=>a+(t.amount||0),0);
+  const available=income-expenses-savings-pendingAmount;
   const todayCals=meals.reduce((a,m)=>a+(m.calories||0),0);
-  const calGoal=cfg.daily_calorie_goal||2000;
+  const calGoalBase=cfg.daily_calorie_goal||2000;
+  const exToday=await db.get('exercises',{filter:{date:today}});
+  const calBurned=exToday.reduce((a,e)=>a+(e.calories_burned||0),0);
+  const calGoal=calGoalBase+calBurned;
   const calPct=Math.min(100,Math.round(todayCals/calGoal*100));
   const completedH=habits.filter(h=>habitLogs.some(l=>l.habit_id===h.id)).length;
   const weekDays=getWeekDays();const dayL=['L','M','X','J','V','S','D'];
@@ -656,7 +665,13 @@ async function renderFinances(){
   const savings=ptxs.filter(t=>t.type==='expense'&&t.category==='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
   const expenses=ptxs.filter(t=>t.type==='expense'&&t.category!=='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
   const fixed=ptxs.filter(t=>t.type==='expense'&&t.is_recurring&&t.category!=='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
-  const available=income-expenses-savings;
+  const registeredRecurringKeys=ptxs.filter(t=>t.type==='expense'&&t.is_recurring&&t.category!=='Ahorro / Inversión').map(t=>t.category+'|'+(t.description||''));
+  const allRecurring=S.transactions.filter(t=>t.is_recurring&&t.type==='expense'&&t.category!=='Ahorro / Inversión');
+  const seen=new Set();const recurringTemplates=[];
+  allRecurring.forEach(t=>{const k=t.category+'|'+(t.description||'');if(!seen.has(k)){seen.add(k);recurringTemplates.push(t);}});
+  const pendingRecurring=recurringTemplates.filter(t=>!registeredRecurringKeys.includes(t.category+'|'+(t.description||'')));
+  const pendingAmount=pendingRecurring.reduce((a,t)=>a+(t.amount||0),0);
+  const available=income-expenses-savings-pendingAmount;
   const byCat={};ptxs.filter(t=>t.type==='expense').forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+(t.amount||0);});
   const catData=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const tab=S.financeTab;
@@ -703,7 +718,14 @@ async function renderFinances(){
           </div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--blue)"></div></div></div>`;
         }).join('')}
       </div>`:''}
-    `:tab==='gastos'?`
+    
+      <div class="card" style="margin-bottom:10px" id="donut-card">
+        <div class="card-label" style="margin-bottom:10px">Distribución de gastos</div>
+        <div id="donut-container" style="display:flex;align-items:center;gap:16px">
+          <div style="text-align:center;color:var(--text3);font-size:12px">Calculando...</div>
+        </div>
+      </div>
+`:tab==='gastos'?`
       <div class="card" style="margin-bottom:20px">
         ${ptxs.length===0?'<p style="font-size:13px;color:var(--text3);text-align:center;padding:24px">Sin movimientos este ciclo</p>':
           ptxs.map(tx=>`<div class="row-item">
@@ -739,6 +761,29 @@ async function renderFinances(){
       </div>
     `}
   `;
+  // Render donut chart if on resumen tab
+  if(tab==='resumen'&&catData.length>0){
+    setTimeout(()=>{
+      const dc=document.getElementById('donut-container');
+      if(!dc)return;
+      const total=expenses+savings;
+      if(total===0){dc.innerHTML='<p style="font-size:12px;color:var(--text3)">Sin gastos este ciclo</p>';return;}
+      const colors=['#2563eb','#dc2626','#1a9e6e','#d97706','#7c3aed','#ea580c','#0891b2','#65a30d'];
+      const circ=2*Math.PI*40;let offset=0;
+      let paths='';
+      catData.slice(0,7).forEach(([cat,val],i)=>{
+        const pct=val/total;const dash=pct*circ;const gap=circ-dash;
+        const angle=offset*2*Math.PI-Math.PI/2;
+        paths+='<circle cx="60" cy="60" r="40" fill="none" stroke="'+colors[i%colors.length]+'" stroke-width="18" stroke-dasharray="'+dash.toFixed(2)+' '+gap.toFixed(2)+'" stroke-dashoffset="'+(-(offset*circ)).toFixed(2)+'" transform="rotate(-90 60 60)"/>';
+        offset+=pct;
+      });
+      const legend=catData.slice(0,7).map(([cat,val],i)=>{
+        const pct=total>0?Math.round(val/total*100):0;
+        return'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><div style="width:8px;height:8px;border-radius:50%;background:'+colors[i%colors.length]+';flex-shrink:0"></div><span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cat+'</span><span style="font-size:11px;font-weight:600;color:var(--text2)">'+pct+'%</span></div>';
+      }).join('');
+      dc.innerHTML='<svg viewBox="0 0 120 120" style="width:90px;height:90px;flex-shrink:0">'+paths+'<circle cx="60" cy="60" r="28" fill="white"/><text x="60" y="56" text-anchor="middle" font-size="9" fill="#999" font-family="DM Sans">Total</text><text x="60" y="70" text-anchor="middle" font-size="9" fill="#0a0a0a" font-family="DM Sans" font-weight="700">'+Math.round(total)+'€</text></svg><div style="flex:1;min-width:0">'+legend+'</div>';
+    },50);
+  }
   // Populate expense categories modal
   const expCatSel=document.getElementById('exp-cat');
   if(expCatSel){expCatSel.innerHTML='';getExpenseCats().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;expCatSel.appendChild(o);});}
@@ -824,7 +869,10 @@ async function renderNutrition(){
   el.innerHTML='<div class="spinner"></div>';
   const tab=S.nutritionTab||'hoy';
   if(!S.settings){const s=await db.get('user_settings',{order:'created_at.desc',limit:1});S.settings=s[0]||{};}
-  const calGoal=S.settings.daily_calorie_goal||2000;
+  const calGoalNutBase=S.settings.daily_calorie_goal||2000;
+  const exHoyNut=await db.get('exercises',{filter:{date:S.nutritionDate}});
+  const calBurnedNut=exHoyNut.reduce((a,e)=>a+(e.calories_burned||0),0);
+  const calGoal=calGoalNutBase+calBurnedNut;
 
   // Build header with tabs using template literal (safe - no user data)
   el.innerHTML=`
@@ -903,13 +951,28 @@ async function renderNutrition(){
     if(!mealsFound)ml.innerHTML='<div class="empty"><div class="empty-icon">🍽️</div><p>Sin registros para este día</p></div>';
 
   } else if(tab==='calendario'){
-    const now=new Date();const y=now.getFullYear();const m=now.getMonth();
+    const y=S.nutCalYear;const m=S.nutCalMonth;
     const pad=n=>String(n).padStart(2,'0');
     const firstDay=new Date(y,m,1).getDay();const daysInMonth=new Date(y,m+1,0).getDate();
     const startOffset=firstDay===0?6:firstDay-1;
     const allMeals=await db.get('meals',{gte:{date:y+'-'+pad(m+1)+'-01'},lte:{date:y+'-'+pad(m+1)+'-'+pad(daysInMonth)}});
     const byDate={};allMeals.forEach(meal=>{if(!byDate[meal.date])byDate[meal.date]=0;byDate[meal.date]+=(meal.calories||0);});
     const MESES_ES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    // Navigation
+    const MESES_NAV=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const navRow=document.createElement('div');
+    navRow.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
+    const prevBtnCal=document.createElement('button');
+    prevBtnCal.textContent='‹';prevBtnCal.style.cssText='background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2);padding:0 8px';
+    prevBtnCal.onclick=()=>{let nm=S.nutCalMonth-1;let ny=S.nutCalYear;if(nm<0){nm=11;ny--;}S.nutCalMonth=nm;S.nutCalYear=ny;renderNutrition();};
+    const monthSpan=document.createElement('span');
+    monthSpan.textContent=MESES_NAV[m]+' '+y;monthSpan.style.cssText='font-size:15px;font-weight:700';
+    const nextBtnCal=document.createElement('button');
+    nextBtnCal.textContent='›';nextBtnCal.style.cssText='background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2);padding:0 8px';
+    nextBtnCal.onclick=()=>{let nm=S.nutCalMonth+1;let ny=S.nutCalYear;if(nm>11){nm=0;ny++;}S.nutCalMonth=nm;S.nutCalYear=ny;renderNutrition();};
+    navRow.appendChild(prevBtnCal);navRow.appendChild(monthSpan);navRow.appendChild(nextBtnCal);
+    nc.appendChild(navRow);
 
     // Build calendar using DOM - no nested template literals
     const calDiv=document.createElement('div');
@@ -1565,25 +1628,23 @@ async function loadGoalsList(){
 }
 
 async function moveCat(type, idx, dir){
-  const customKey=type==='expense'?'custom_expense_cats':'custom_income_cats';
-  const removedKey=type==='expense'?'removed_expense_cats':'removed_income_cats';
-  const defaults=type==='expense'?DEFAULT_EXPENSE_CATS:DEFAULT_INCOME_CATS;
-  // Get full ordered list
+  const orderKey=type==='expense'?'expense_cat_order':'income_cat_order';
   const cats=type==='expense'?getExpenseCats():getIncomeCats();
   const newIdx=idx+dir;
   if(newIdx<0||newIdx>=cats.length)return;
-  // Swap
   [cats[idx],cats[newIdx]]=[cats[newIdx],cats[idx]];
-  // Split back into custom and removed
-  const custom=cats.filter(c=>!defaults.includes(c));
-  const removed=defaults.filter(c=>!cats.includes(c));
-  // Reorder defaults based on new cats order
-  const payload={[customKey]:custom,[removedKey]:removed};
-  // Store full ordered list as custom_order
-  const orderKey=type==='expense'?'expense_cat_order':'income_cat_order';
+  const defaults=type==='expense'?DEFAULT_EXPENSE_CATS:DEFAULT_INCOME_CATS;
+  const customKey=type==='expense'?'custom_expense_cats':'custom_income_cats';
+  const removedKey=type==='expense'?'removed_expense_cats':'removed_income_cats';
+  const payload={};
   payload[orderKey]=cats;
-  if(S.settings?.id)await db.update('user_settings',S.settings.id,payload);
-  if(S.settings)Object.assign(S.settings,payload);
+  payload[customKey]=cats.filter(c=>!defaults.includes(c));
+  payload[removedKey]=defaults.filter(c=>!cats.includes(c));
+  if(S.settings?.id){
+    await db.update('user_settings',S.settings.id,payload);
+    const fresh=await db.get('user_settings',{order:'created_at.desc',limit:1});
+    S.settings=fresh[0]||S.settings;
+  }
   renderSettings();
 }
 async function addCat(type){
