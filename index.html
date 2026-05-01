@@ -345,6 +345,7 @@
     <p id="macro-edit-name" style="font-size:14px;font-weight:500;margin-bottom:14px;color:var(--text2)"></p>
     <div class="grid2" style="gap:10px">
       <div class="field"><label>Calorías</label><input type="number" id="me-cal" inputmode="numeric"/></div>
+      <div class="field"><label>Cantidad (g/ml)</label><input type="number" id="me-grams" inputmode="numeric" placeholder="ej: 150"/></div>
       <div class="field"><label>Proteína (g)</label><input type="number" id="me-pro" inputmode="numeric"/></div>
       <div class="field"><label>Carbos (g)</label><input type="number" id="me-car" inputmode="numeric"/></div>
       <div class="field"><label>Grasa (g)</label><input type="number" id="me-fat" inputmode="numeric"/></div>
@@ -824,28 +825,20 @@ async function renderFinances(){
     const recDiv=document.createElement('div');
     recDiv.style.marginBottom='10px';
 
-    // Nav row
+    // Nav row - only calendar button
     const recNav=document.createElement('div');
     recNav.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
-    const pillsDiv=document.createElement('div');
-    pillsDiv.style.cssText='display:flex;gap:6px';
-    ['fijos','variables'].forEach(rt=>{
-      const btn=document.createElement('button');
-      btn.textContent=rt.charAt(0).toUpperCase()+rt.slice(1);
-      btn.style.cssText='padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
-      btn.style.background=recurTab===rt?'var(--text)':'var(--bg3)';
-      btn.style.color=recurTab===rt?'#fff':'var(--text2)';
-      btn.onclick=()=>{S.recurTab=rt;renderFinances();};
-      pillsDiv.appendChild(btn);
-    });
+    const recTitle=document.createElement('span');
+    recTitle.style.cssText='font-size:13px;font-weight:600;color:var(--text2)';
+    recTitle.textContent='Gastos fijos recurrentes';
     const calBtn=document.createElement('button');
     calBtn.textContent='📅 Calendario';
     calBtn.style.cssText='padding:6px 12px;background:var(--blue-bg);border:none;border-radius:8px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
     calBtn.onclick=()=>openModal('modal-calendar');
-    recNav.appendChild(pillsDiv);recNav.appendChild(calBtn);
+    recNav.appendChild(recTitle);recNav.appendChild(calBtn);
     recDiv.appendChild(recNav);
 
-    if(recurTab==='fijos'){
+    if(true){// always show fijos in recurrentes tab
       const fixedList=recurringTemplates;
       if(!fixedList.length){
         const empty=document.createElement('p');
@@ -871,28 +864,8 @@ async function renderFinances(){
           recDiv.appendChild(card);
         });
       }
-    } else {
-      // Variables
-      const varTxs=ptxs.filter(t=>t.type==='expense'&&!t.is_recurring&&t.category!=='Ahorro / Inversión');
-      if(!varTxs.length){
-        const empty=document.createElement('p');
-        empty.style.cssText='font-size:13px;color:var(--text3);text-align:center;padding:24px';
-        empty.textContent='Sin gastos variables este ciclo';
-        recDiv.appendChild(empty);
-      } else {
-        varTxs.forEach(tx=>{
-          const card=document.createElement('div');
-          card.className='card';card.style.cssText='margin-bottom:8px;display:flex;align-items:center;gap:12px';
-          card.innerHTML=`<div class="row-icon" style="background:var(--red-bg)">💸</div>
-            <div style="flex:1;min-width:0">
-              <div class="row-name">${tx.description||tx.category}</div>
-              <div class="row-sub">${tx.category} · ${tx.date}</div>
-            </div>
-            <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>`;
-          recDiv.appendChild(card);
-        });
-      }
     }
+
     body.appendChild(recDiv);
   }
 
@@ -1036,7 +1009,7 @@ async function renderNutrition(){
         const editBtn=document.createElement('button');
         editBtn.style.cssText='background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px';
         editBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-        editBtn.onclick=()=>openMacroEdit(meal.id,meal.name,meal.calories,meal.protein,meal.carbs,meal.fat);
+        editBtn.onclick=()=>openMacroEdit(meal.id,meal.name,meal.calories,meal.protein,meal.carbs,meal.fat,meal.amount_g);
         const delBtn=document.createElement('button');
         delBtn.className='row-del';
         delBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
@@ -1166,18 +1139,22 @@ async function consultaIA(){
 }
 
 
-function openMacroEdit(id,name,cal,pro,car,fat){
+function openMacroEdit(id,name,cal,pro,car,fat,grams){
   S.editingMacroMeal={id,name};
   document.getElementById('macro-edit-name').textContent=name;
   document.getElementById('me-cal').value=cal;
   document.getElementById('me-pro').value=pro;
   document.getElementById('me-car').value=car;
   document.getElementById('me-fat').value=fat;
+  document.getElementById('me-grams').value=grams||'';
   openModal('modal-macro-edit');
 }
 async function saveMacroEdit(){
   const{id}=S.editingMacroMeal;
-  await db.update('meals',id,{calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0});
+  const grams=parseFloat(document.getElementById('me-grams').value)||null;
+  const payload={calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0};
+  if(grams)payload.amount_g=grams;
+  await db.update('meals',id,payload);
   closeModal('modal-macro-edit');renderNutrition();
 }
 async function delMeal(id,name){
@@ -1226,21 +1203,25 @@ async function renderExercise(){
 
     card.innerHTML=`<div style="display:flex;align-items:start;gap:12px">
       <span style="font-size:26px;margin-top:2px">${sEmoji[ex.sport_type]||'⚡'}</span>
-      <div style="flex:1;min-width:0">
-        <p style="font-size:14px;font-weight:600">${sLabel[ex.sport_type]||ex.sport_type}</p>
+      <div style="flex:1;min-width:0;overflow:visible">
+        <div style="display:flex;align-items:start;justify-content:space-between">
+          <p style="font-size:14px;font-weight:600">${sLabel[ex.sport_type]||ex.sport_type}</p>
+          <div id="ex-btns-${ex.id}" style="display:flex;align-items:center;flex-shrink:0;margin-left:8px"></div>
+        </div>
         <p style="font-size:11px;color:var(--text3);margin-bottom:6px">${ex.date}</p>
         <div style="display:flex;flex-wrap:wrap;gap:5px">
           <span class="badge badge-blue">⏱ ${ex.duration_minutes} min</span>
           ${ex.calories_burned?'<span class="badge badge-amber">🔥 '+ex.calories_burned+' kcal</span>':''}
           ${ex.distance_km?'<span class="badge badge-green">'+ex.distance_km+' km</span>':''}
+          ${ex.avg_pace?'<span class="badge badge-purple">'+ex.avg_pace+'/km</span>':''}
         </div>
         ${mgHtml}
       </div>
-      <div id="ex-btns-${ex.id}"></div>
     </div>`;
 
     // Add buttons via DOM to avoid any escaping issues
     const btnDiv=card.querySelector('#ex-btns-'+ex.id);
+    btnDiv.style.cssText='display:flex;align-items:center';
     const editBtn=document.createElement('button');
     editBtn.style.cssText='background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px';
     editBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
@@ -1769,9 +1750,12 @@ async function moveCat(type, idx, dir){
   payload[removedKey]=defaults.filter(c=>!cats.includes(c));
   if(S.settings?.id){
     await db.update('user_settings',S.settings.id,payload);
-    const fresh=await db.get('user_settings',{order:'created_at.desc',limit:1});
-    S.settings=fresh[0]||S.settings;
+  } else {
+    const newSettings=await db.insert('user_settings',payload);
+    S.settings=newSettings;
   }
+  const fresh=await db.get('user_settings',{order:'created_at.desc',limit:1});
+  S.settings=fresh[0]||S.settings;
   renderSettings();
 }
 async function addCat(type){
