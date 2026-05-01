@@ -775,7 +775,7 @@ async function renderFinances(){
     ['todos','variables','fijos'].forEach(st=>{
       const btn=document.createElement('button');
       btn.textContent=st.charAt(0).toUpperCase()+st.slice(1);
-      btn.style.cssText='padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'';
+      btn.style.cssText='padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
       btn.style.background=subTab===st?'var(--text)':'var(--bg3)';
       btn.style.color=subTab===st?'#fff':'var(--text2)';
       btn.onclick=()=>{S.subFinanceTab=st;renderFinances();};
@@ -832,7 +832,7 @@ async function renderFinances(){
     ['fijos','variables'].forEach(rt=>{
       const btn=document.createElement('button');
       btn.textContent=rt.charAt(0).toUpperCase()+rt.slice(1);
-      btn.style.cssText='padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'';
+      btn.style.cssText='padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
       btn.style.background=recurTab===rt?'var(--text)':'var(--bg3)';
       btn.style.color=recurTab===rt?'#fff':'var(--text2)';
       btn.onclick=()=>{S.recurTab=rt;renderFinances();};
@@ -840,7 +840,7 @@ async function renderFinances(){
     });
     const calBtn=document.createElement('button');
     calBtn.textContent='📅 Calendario';
-    calBtn.style.cssText='padding:6px 12px;background:var(--blue-bg);border:none;border-radius:8px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'';
+    calBtn.style.cssText='padding:6px 12px;background:var(--blue-bg);border:none;border-radius:8px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
     calBtn.onclick=()=>openModal('modal-calendar');
     recNav.appendChild(pillsDiv);recNav.appendChild(calBtn);
     recDiv.appendChild(recNav);
@@ -865,7 +865,7 @@ async function renderFinances(){
             <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>`;
           const cancelBtn=document.createElement('button');
           cancelBtn.textContent='Cancelar';
-          cancelBtn.style.cssText='font-size:10px;padding:4px 10px;background:var(--amber-bg);border:none;border-radius:8px;color:var(--amber);cursor:pointer;font-family:'DM Sans';font-weight:600';
+          cancelBtn.style.cssText='font-size:10px;padding:4px 10px;background:var(--amber-bg);border:none;border-radius:8px;color:var(--amber);cursor:pointer;font-family:inherit;font-weight:600';
           cancelBtn.onclick=()=>toggleRecurring(tx.id);
           card.appendChild(cancelBtn);
           recDiv.appendChild(card);
@@ -1175,7 +1175,7 @@ function openMacroEdit(id,name,cal,pro,car,fat){
   document.getElementById('me-fat').value=fat;
   openModal('modal-macro-edit');
 }
-async async function saveMacroEdit(){
+async function saveMacroEdit(){
   const{id}=S.editingMacroMeal;
   await db.update('meals',id,{calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0});
   closeModal('modal-macro-edit');renderNutrition();
@@ -2057,12 +2057,19 @@ async function ensureSettingsColumns(){
 }
 ensureSettingsColumns();
 async function initApp(){
-  await renderDashboard();
-  // Check salary on app open
-  const s=await db.get('user_settings',{order:'created_at.desc',limit:1});
-  if(s[0]?.monthly_salary&&s[0]?.payday){
-    await checkAndAddSalary(s[0].monthly_salary,s[0].payday);
+  try{
+    await renderDashboard();
+  }catch(e){
+    console.error('renderDashboard error:',e);
+    const el=document.getElementById('view-dashboard');
+    if(el)el.innerHTML='<div style="padding:24px;text-align:center"><p style="color:var(--red)">Error cargando. Comprueba tu conexión.</p><button onclick="initApp()" style="margin-top:12px;padding:10px 20px;background:var(--blue);color:#fff;border:none;border-radius:12px;cursor:pointer;font-size:14px">Reintentar</button></div>';
   }
+  try{
+    const s=await db.get('user_settings',{order:'created_at.desc',limit:1});
+    if(s[0]?.monthly_salary&&s[0]?.payday){
+      await checkAndAddSalary(s[0].monthly_salary,s[0].payday);
+    }
+  }catch(e){console.error('salary check error:',e);}
 }
 initApp();
 </script>
