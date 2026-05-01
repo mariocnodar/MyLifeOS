@@ -173,6 +173,55 @@
   </div>
 </div>
 
+<!-- EDIT EXERCISE MODAL -->
+<div id="modal-edit-ex" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-edit-ex')">
+  <div class="modal">
+    <div class="modal-title">Editar ejercicio <button class="modal-close" onclick="closeModal('modal-edit-ex')">×</button></div>
+    <div class="field"><label>Deporte</label><input type="text" id="eex-sport"/></div>
+    <div class="field"><label>Duración (min)</label><input type="number" id="eex-duration" inputmode="numeric"/></div>
+    <div class="field"><label>Calorías quemadas</label><input type="number" id="eex-calories" inputmode="numeric"/></div>
+    <div class="field"><label>Distancia (km)</label><input type="number" id="eex-distance" step="0.1" inputmode="decimal"/></div>
+    <div class="field"><label>Ritmo medio</label><input type="text" id="eex-pace" placeholder="6:30"/></div>
+    <div class="field"><label>Fecha</label><input type="date" id="eex-date"/></div>
+    <div class="field"><label>Notas</label><input type="text" id="eex-notes"/></div>
+    <button class="btn btn-primary" onclick="saveEditEx()">Guardar cambios</button>
+  </div>
+</div>
+
+<!-- EDIT HABIT MODAL -->
+<div id="modal-edit-habit" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-edit-habit')">
+  <div class="modal">
+    <div class="modal-title">Editar hábito <button class="modal-close" onclick="closeModal('modal-edit-habit')">×</button></div>
+    <div class="field"><label>Nombre</label><input type="text" id="eh-name"/></div>
+    <div class="field"><label>Emoji</label><input type="text" id="eh-icon" maxlength="2" style="width:56px"/></div>
+    <div class="field"><label>Tipo</label>
+      <select id="eh-type">
+        <option value="general">General</option>
+        <option value="economic">Económico</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="saveEditHabit()">Guardar cambios</button>
+  </div>
+</div>
+
+<!-- EDIT TASK MODAL -->
+<div id="modal-edit-task" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-edit-task')">
+  <div class="modal">
+    <div class="modal-title">Editar tarea <button class="modal-close" onclick="closeModal('modal-edit-task')">×</button></div>
+    <div class="field"><label>Título</label><input type="text" id="et-title"/></div>
+    <div class="field"><label>Descripción</label><textarea id="et-desc"></textarea></div>
+    <div class="field"><label>Prioridad</label>
+      <select id="et-priority">
+        <option value="Alta">Alta</option>
+        <option value="Media">Media</option>
+        <option value="Baja">Baja</option>
+      </select>
+    </div>
+    <div class="field"><label>Fecha límite</label><input type="date" id="et-due"/></div>
+    <button class="btn btn-primary" onclick="saveEditTask()">Guardar cambios</button>
+  </div>
+</div>
+
 <div id="modal-income" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-income')">
   <div class="modal">
     <div class="modal-title">Nuevo ingreso <button class="modal-close" onclick="closeModal('modal-income')">×</button></div>
@@ -696,6 +745,7 @@ async function renderFinances(){
   if(incCatSel){incCatSel.innerHTML='';getIncomeCats().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;incCatSel.appendChild(o);});}
 }
 
+function openEditTxById(id){const tx=S.transactions&&S.transactions.find(t=>t.id===id);if(tx)openEditTx(tx);}
 function openEditTx(tx){
   S.editingTx=tx;
   document.getElementById('etx-amount').value=tx.amount||'';
@@ -969,7 +1019,7 @@ async function delMeal(id,name){
 // ─── EXERCISE ────────────────────────────────────────────────────────────────
 async function renderExercise(){
   const el=document.getElementById('view-exercise');el.innerHTML='<div class="spinner"></div>';
-  const exs=await db.get('exercises',{order:'date.desc',limit:100});
+  const exs=await db.get('exercises',{order:'date.desc',limit:100});S.exercises=exs;
   const sEmoji={gym:'🏋️',running:'🏃',walking:'🚶',cycling:'🚴',swimming:'🏊',yoga:'🧘',other:'⚡'};
   const sLabel={gym:'Gimnasio',running:'Correr',walking:'Andar',cycling:'Ciclismo',swimming:'Natación',yoga:'Yoga',other:'Otro'};
   const weekDays=getWeekDays();const weekEx=exs.filter(e=>weekDays.includes(e.date));
@@ -1000,6 +1050,7 @@ async function renderExercise(){
             </div>
             ${ex.muscle_groups?.length?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${ex.muscle_groups.map(mg=>`<span style="font-size:10px;background:var(--orange-bg);color:var(--orange);padding:2px 8px;border-radius:20px">${mg}</span>`).join('')}</div>`:''}
           </div>
+          <button onclick="openEditExById('${ex.id}'))" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button class="row-del" onclick="delEx('${ex.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         </div>
       </div>`).join('')}`;
@@ -1111,6 +1162,7 @@ async function renderTasks(){
               ${t.due_date?`<span style="font-size:10px;color:${isOverdue?'var(--red)':'var(--text3)'}">${t.due_date}</span>`:''}
             </div>
           </div>
+          <button onclick="openEditTaskById('${t.id}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button onclick="delTask('${t.id}','${t.title.replace(/'/g,"\\'")}');" class="row-del"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         </div>`;
       }).join('')}`;
@@ -1728,6 +1780,74 @@ async function saveGoal(){
 async function delGoal(id){
   await db.delete('goals',id);
   loadGoalsList();
+}
+
+// ─── EDIT FUNCTIONS ──────────────────────────────────────────────────────────
+function openEditExById(id){const ex=S.exercises&&S.exercises.find(e=>e.id===id);if(ex)openEditEx(ex);}
+function openEditEx(ex){
+  S.editingEx=ex;
+  document.getElementById('eex-sport').value=ex.sport_type||'';
+  document.getElementById('eex-duration').value=ex.duration_minutes||'';
+  document.getElementById('eex-calories').value=ex.calories_burned||'';
+  document.getElementById('eex-distance').value=ex.distance_km||'';
+  document.getElementById('eex-pace').value=ex.avg_pace||'';
+  document.getElementById('eex-date').value=ex.date||today;
+  document.getElementById('eex-notes').value=ex.notes||'';
+  openModal('modal-edit-ex');
+}
+async function saveEditEx(){
+  if(!S.editingEx)return;
+  const payload={
+    sport_type:document.getElementById('eex-sport').value,
+    duration_minutes:parseInt(document.getElementById('eex-duration').value)||S.editingEx.duration_minutes,
+    calories_burned:parseInt(document.getElementById('eex-calories').value)||null,
+    distance_km:parseFloat(document.getElementById('eex-distance').value)||null,
+    avg_pace:document.getElementById('eex-pace').value||null,
+    date:document.getElementById('eex-date').value||today,
+    notes:document.getElementById('eex-notes').value||null
+  };
+  await db.update('exercises',S.editingEx.id,payload);
+  closeModal('modal-edit-ex');renderExercise();
+}
+
+function openEditHabitById(id){const h=S.habits&&S.habits.find(h=>h.id===id);if(h)openEditHabit(h);}
+function openEditHabit(h){
+  S.editingHabit=h;
+  document.getElementById('eh-name').value=h.name||'';
+  document.getElementById('eh-icon').value=h.icon||'✨';
+  document.getElementById('eh-type').value=h.habit_type||'general';
+  openModal('modal-edit-habit');
+}
+async function saveEditHabit(){
+  if(!S.editingHabit)return;
+  const payload={
+    name:document.getElementById('eh-name').value,
+    icon:document.getElementById('eh-icon').value||'✨',
+    habit_type:document.getElementById('eh-type').value
+  };
+  await db.update('habits',S.editingHabit.id,payload);
+  closeModal('modal-edit-habit');renderHabits();
+}
+
+function openEditTaskById(id){const t=S.tasks&&S.tasks.find(t=>t.id===id);if(t)openEditTask(t);}
+function openEditTask(t){
+  S.editingTask=t;
+  document.getElementById('et-title').value=t.title||'';
+  document.getElementById('et-desc').value=t.description||'';
+  document.getElementById('et-priority').value=t.priority||'Media';
+  document.getElementById('et-due').value=t.due_date||'';
+  openModal('modal-edit-task');
+}
+async function saveEditTask(){
+  if(!S.editingTask)return;
+  const payload={
+    title:document.getElementById('et-title').value,
+    description:document.getElementById('et-desc').value,
+    priority:document.getElementById('et-priority').value,
+    due_date:document.getElementById('et-due').value||null
+  };
+  await db.update('tasks',S.editingTask.id,payload);
+  closeModal('modal-edit-task');renderTasks();
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
