@@ -668,35 +668,48 @@ async function renderFinances(){
   const savings=ptxs.filter(t=>t.type==='expense'&&t.category==='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
   const expenses=ptxs.filter(t=>t.type==='expense'&&t.category!=='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
   const fixed=ptxs.filter(t=>t.type==='expense'&&t.is_recurring&&t.category!=='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
+  // Pending recurring (templates not yet registered this cycle)
   const registeredRecurringKeys=ptxs.filter(t=>t.type==='expense'&&t.is_recurring&&t.category!=='Ahorro / Inversión').map(t=>t.category+'|'+(t.description||''));
   const allRecurring=S.transactions.filter(t=>t.is_recurring&&t.type==='expense'&&t.category!=='Ahorro / Inversión');
-  const seen=new Set();const recurringTemplates=[];
-  allRecurring.forEach(t=>{const k=t.category+'|'+(t.description||'');if(!seen.has(k)){seen.add(k);recurringTemplates.push(t);}});
+  const seenR=new Set();const recurringTemplates=[];
+  allRecurring.forEach(t=>{const k=t.category+'|'+(t.description||'');if(!seenR.has(k)){seenR.add(k);recurringTemplates.push(t);}});
   const pendingRecurring=recurringTemplates.filter(t=>!registeredRecurringKeys.includes(t.category+'|'+(t.description||'')));
   const pendingAmount=pendingRecurring.reduce((a,t)=>a+(t.amount||0),0);
   const available=income-expenses-savings-pendingAmount;
   const byCat={};ptxs.filter(t=>t.type==='expense').forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+(t.amount||0);});
   const catData=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const tab=S.financeTab;
+  const subTab=S.subFinanceTab||'todos';
+  const recurTab=S.recurTab||'fijos';
 
-  el.innerHTML=`
-    <div class="page-header">
-      <div><h1 class="page-title">Finanzas</h1><p class="page-sub">Ciclo ${period.label}</p></div>
-      <div style="display:flex;gap:8px">
-        <button onclick="openModal('modal-income')" style="padding:7px 12px;background:var(--green-bg);border:none;border-radius:10px;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Ingreso</button>
-        <button onclick="openModal('modal-expense')" style="padding:7px 12px;background:var(--red-bg);border:none;border-radius:10px;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Gasto</button>
-      </div>
+  el.innerHTML='';
+
+  // ── Header ──────────────────────────────────────────────────────────────
+  const hdr=document.createElement('div');
+  hdr.innerHTML=`<div class="page-header">
+    <div><h1 class="page-title">Finanzas</h1><p class="page-sub">Ciclo ${period.label}</p></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="openModal('modal-income')" style="padding:7px 12px;background:var(--green-bg);border:none;border-radius:10px;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Ingreso</button>
+      <button onclick="openModal('modal-expense')" style="padding:7px 12px;background:var(--red-bg);border:none;border-radius:10px;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Gasto</button>
     </div>
-    <div class="tabs">
-      <button class="tab-btn ${tab==='resumen'?'active':''}" onclick="S.financeTab='resumen';renderFinances()">Resumen</button>
-      <button class="tab-btn ${tab==='gastos'?'active':''}" onclick="S.financeTab='gastos';renderFinances()">Movimientos</button>
-      <button class="tab-btn ${tab==='recurrentes'?'active':''}" onclick="S.financeTab='recurrentes';renderFinances()">Recurrentes</button>
-    </div>
-    ${tab==='resumen'?`
+  </div>
+  <div class="tabs">
+    <button class="tab-btn ${tab==='resumen'?'active':''}" onclick="S.financeTab='resumen';renderFinances()">Resumen</button>
+    <button class="tab-btn ${tab==='gastos'?'active':''}" onclick="S.financeTab='gastos';renderFinances()">Movimientos</button>
+    <button class="tab-btn ${tab==='recurrentes'?'active':''}" onclick="S.financeTab='recurrentes';renderFinances()">Recurrentes</button>
+  </div>`;
+  el.appendChild(hdr);
+
+  const body=document.createElement('div');
+  el.appendChild(body);
+
+  // ── RESUMEN ──────────────────────────────────────────────────────────────
+  if(tab==='resumen'){
+    body.innerHTML=`
       <div class="grid2" style="margin-bottom:10px">
         <div class="card"><div class="card-label">Ingresos</div><div class="card-value c-green" style="font-size:19px">${fmt(income)}</div></div>
         <div class="card"><div class="card-label">Gastos</div><div class="card-value c-red" style="font-size:19px">${fmt(expenses)}</div></div>
-        <div class="card"><div class="card-label">Disponible</div><div class="card-value c-blue" style="font-size:19px">${fmt(available)}</div></div>
+        <div class="card"><div class="card-label">Disponible</div><div class="card-value c-blue" style="font-size:19px">${fmt(available)}</div>${pendingAmount>0?'<div class="card-note">incl. '+fmt(pendingAmount)+' pendientes</div>':''}</div>
         <div class="card"><div class="card-label">Ahorrado 💰</div><div class="card-value c-green" style="font-size:19px">${fmt(savings)}</div><div class="card-note">este ciclo</div></div>
       </div>
       <div class="card" style="margin-bottom:10px">
@@ -709,120 +722,188 @@ async function renderFinances(){
             <div class="bar-track"><div class="bar-fill" style="width:${expenses>0?Math.round((expenses-fixed)/expenses*100):0}%;background:var(--red)"></div></div>
             <p style="font-size:10px;color:var(--text3);margin-top:3px">${expenses>0?Math.round((expenses-fixed)/expenses*100):0}%</p></div>
         </div>
-      </div>
-      ${catData.length>0?`<div class="card" style="margin-bottom:20px">
-        <div class="card-label" style="margin-bottom:10px">Top categorías</div>
-        ${catData.slice(0,5).map(([cat,val],i)=>{
-          const medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
-          const pct=(expenses+savings)>0?Math.round(val/(expenses+savings)*100):0;
-          return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:12px;font-weight:500">${medals[i]} ${cat}</span>
-            <span style="font-size:12px;font-weight:600">${fmt(val)} <span style="color:var(--text3);font-size:10px">${pct}%</span></span>
-          </div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--blue)"></div></div></div>`;
-        }).join('')}
-      </div>`:''}
-    
-      <div class="card" style="margin-bottom:10px" id="donut-card">
-        <div class="card-label" style="margin-bottom:10px">Distribución de gastos</div>
-        <div id="donut-container" style="display:flex;align-items:center;gap:16px">
-          <div style="text-align:center;color:var(--text3);font-size:12px">Calculando...</div>
-        </div>
-      </div>
-`:tab==='gastos'?`
-      <div class="card" style="margin-bottom:20px">
-        ${ptxs.length===0?'<p style="font-size:13px;color:var(--text3);text-align:center;padding:24px">Sin movimientos este ciclo</p>':
-          ptxs.map(tx=>`<div class="row-item">
-            <div class="row-icon" style="background:${tx.type==='income'?'var(--green-bg)':tx.category==='Ahorro / Inversión'?'var(--blue-bg)':'var(--red-bg)'}">
-              ${tx.type==='income'?'💰':tx.category==='Ahorro / Inversión'?'🏦':'💸'}
-            </div>
-            <div style="flex:1;min-width:0">
-              <div class="row-name">${tx.description||tx.category}</div>
-              <div class="row-sub">${tx.category} · ${tx.date}${tx.is_recurring?' · 🔁':''}</div>
-            </div>
-            <span style="font-size:13px;font-weight:700;margin-right:8px;color:${tx.type==='income'?'var(--green)':tx.category==='Ahorro / Inversión'?'var(--blue)':'var(--red)'}">${tx.type==='income'?'+':'-'}${(tx.amount||0).toFixed(2)}€</span>
-            <button onclick="openEditTxById('${tx.id}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="row-del" onclick="delTx('${tx.id}','${tx.description||tx.category}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
-          </div>`).join('')}
-      </div>
-    `:`
-      <!-- RECURRENTES -->
-      <div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div style="display:flex;gap:6px">
-            <button onclick="S.recurTab='fijos';renderFinances()" style="padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans';background:${(S.recurTab||'fijos')==='fijos'?'var(--text)':'var(--bg3)'};color:${(S.recurTab||'fijos')==='fijos'?'#fff':'var(--text2)'}">Fijos</button>
-            <button onclick="S.recurTab='variables';renderFinances()" style="padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans';background:${(S.recurTab||'fijos')==='variables'?'var(--text)':'var(--bg3)'};color:${(S.recurTab||'fijos')==='variables'?'#fff':'var(--text2)'}">Variables</button>
-          </div>
-          <button onclick="openModal('modal-calendar')" style="padding:6px 12px;background:var(--blue-bg);border:none;border-radius:8px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">📅 Calendario</button>
-        </div>
-        ${(S.recurTab||'fijos')==='variables'?`
-        <div>
-          ${ptxs.filter(t=>t.type==='expense'&&!t.is_recurring&&t.category!=='Ahorro / Inversión').length===0?'<p style="font-size:13px;color:var(--text3);text-align:center;padding:24px">Sin gastos variables este ciclo</p>':
-            ptxs.filter(t=>t.type==='expense'&&!t.is_recurring&&t.category!=='Ahorro / Inversión').map(tx=>`<div class="card" style="margin-bottom:8px;display:flex;align-items:center;gap:12px">
-              <div class="row-icon" style="background:var(--red-bg)">💸</div>
-              <div style="flex:1;min-width:0"><div class="row-name">${tx.description||tx.category}</div><div class="row-sub">${tx.category} · ${tx.date}</div></div>
-              <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>
-            </div>`).join('')}
-        </div>`:``}
-        ${(S.recurTab||'fijos')!=='variables'?`<span style="display:none"></span>`:''}
-        ${(S.recurTab||'fijos')==='fijos'?`<span style="font-size:10px;color:var(--text3)">Gastos fijos configurados</span>`:``}
-        ${S.transactions.filter(t=>t.is_recurring&&t.type==='expense').reduce((acc,t)=>{
-          if(!acc.find(a=>a.description===t.description&&a.category===t.category))acc.push(t);return acc;
-        },[]).map(tx=>`<div class="card" style="margin-bottom:8px;display:flex;align-items:center;gap:12px">
-          <div class="row-icon" style="background:var(--red-bg)">🔁</div>
+      </div>`;
+
+    // Top categorias
+    if(catData.length>0){
+      const catCard=document.createElement('div');
+      catCard.className='card';catCard.style.marginBottom='10px';
+      let catHtml='<div class="card-label" style="margin-bottom:10px">Top categorías</div>';
+      const medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
+      catData.slice(0,5).forEach(([cat,val],i)=>{
+        const pct=(expenses+savings)>0?Math.round(val/(expenses+savings)*100):0;
+        catHtml+=`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:500">${medals[i]} ${cat}</span>
+          <span style="font-size:12px;font-weight:600">${fmt(val)} <span style="color:var(--text3);font-size:10px">${pct}%</span></span>
+        </div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--blue)"></div></div></div>`;
+      });
+      catCard.innerHTML=catHtml;
+      body.appendChild(catCard);
+    }
+
+    // Donut chart
+    if(catData.length>0){
+      const donutCard=document.createElement('div');
+      donutCard.className='card';donutCard.style.marginBottom='20px';
+      donutCard.innerHTML='<div class="card-label" style="margin-bottom:10px">Distribución de gastos</div><div id="donut-container" style="display:flex;align-items:center;gap:16px"><div style="color:var(--text3);font-size:12px">...</div></div>';
+      body.appendChild(donutCard);
+      setTimeout(()=>{
+        const dc=document.getElementById('donut-container');
+        if(!dc)return;
+        const total=expenses+savings;
+        if(total===0){dc.innerHTML='<p style="font-size:12px;color:var(--text3)">Sin gastos este ciclo</p>';return;}
+        const colors=['#2563eb','#dc2626','#1a9e6e','#d97706','#7c3aed','#ea580c','#0891b2','#65a30d'];
+        const circ=2*Math.PI*40;let offset=0;let paths='';
+        catData.slice(0,7).forEach(([cat,val],i)=>{
+          const pct=val/total;const dash=pct*circ;const gap=circ-dash;
+          paths+='<circle cx="60" cy="60" r="40" fill="none" stroke="'+colors[i%colors.length]+'" stroke-width="18" stroke-dasharray="'+dash.toFixed(2)+' '+gap.toFixed(2)+'" stroke-dashoffset="'+(-(offset*circ)).toFixed(2)+'" transform="rotate(-90 60 60)"/>';
+          offset+=pct;
+        });
+        const legend=catData.slice(0,7).map(([cat,val],i)=>{
+          const pct=total>0?Math.round(val/total*100):0;
+          return'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><div style="width:8px;height:8px;border-radius:50%;background:'+colors[i%colors.length]+';flex-shrink:0"></div><span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cat+'</span><span style="font-size:11px;font-weight:600;color:var(--text2)">'+pct+'%</span></div>';
+        }).join('');
+        dc.innerHTML='<svg viewBox="0 0 120 120" style="width:90px;height:90px;flex-shrink:0">'+paths+'<circle cx="60" cy="60" r="28" fill="white"/><text x="60" y="56" text-anchor="middle" font-size="9" fill="#999" font-family="DM Sans">Total</text><text x="60" y="70" text-anchor="middle" font-size="9" fill="#0a0a0a" font-family="DM Sans" font-weight="700">'+Math.round(total)+'€</text></svg><div style="flex:1;min-width:0">'+legend+'</div>';
+      },50);
+    }
+
+  // ── MOVIMIENTOS ───────────────────────────────────────────────────────────
+  } else if(tab==='gastos'){
+    // Subtabs
+    const subNav=document.createElement('div');
+    subNav.style.cssText='display:flex;gap:6px;margin-bottom:12px';
+    ['todos','variables','fijos'].forEach(st=>{
+      const btn=document.createElement('button');
+      btn.textContent=st.charAt(0).toUpperCase()+st.slice(1);
+      btn.style.cssText='padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'';
+      btn.style.background=subTab===st?'var(--text)':'var(--bg3)';
+      btn.style.color=subTab===st?'#fff':'var(--text2)';
+      btn.onclick=()=>{S.subFinanceTab=st;renderFinances();};
+      subNav.appendChild(btn);
+    });
+    body.appendChild(subNav);
+
+    let ftx=ptxs;
+    if(subTab==='variables')ftx=ptxs.filter(t=>!t.is_recurring);
+    else if(subTab==='fijos')ftx=ptxs.filter(t=>t.is_recurring);
+
+    const card=document.createElement('div');
+    card.className='card';card.style.marginBottom='20px';
+    if(!ftx.length){
+      card.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:24px">Sin movimientos</p>';
+    } else {
+      ftx.forEach(tx=>{
+        const row=document.createElement('div');
+        row.className='row-item';
+        const icon=tx.type==='income'?'💰':tx.category==='Ahorro / Inversión'?'🏦':'💸';
+        const bg=tx.type==='income'?'var(--green-bg)':tx.category==='Ahorro / Inversión'?'var(--blue-bg)':'var(--red-bg)';
+        const color=tx.type==='income'?'var(--green)':tx.category==='Ahorro / Inversión'?'var(--blue)':'var(--red)';
+        const sign=tx.type==='income'?'+':'-';
+        row.innerHTML=`<div class="row-icon" style="background:${bg}">${icon}</div>
           <div style="flex:1;min-width:0">
             <div class="row-name">${tx.description||tx.category}</div>
-            <div class="row-sub">${tx.category} · día ${new Date(tx.date+'T12:00:00').getDate()} de cada mes</div>
+            <div class="row-sub">${tx.category} · ${tx.date}${tx.is_recurring?' · 🔁':''}</div>
           </div>
-          <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>
-          <button onclick="toggleRecurring('${tx.id}')" style="font-size:10px;padding:4px 10px;background:var(--amber-bg);border:none;border-radius:8px;color:var(--amber);cursor:pointer;font-family:'DM Sans';font-weight:600">Cancelar</button>
-        </div>`).join('')||'<p style="font-size:13px;color:var(--text3);text-align:center;padding:24px">Sin gastos recurrentes</p>'}
-      </div>
-    `}
-  `;
-  // Render donut chart if on resumen tab
-  if(tab==='resumen'&&catData.length>0){
-    setTimeout(()=>{
-      const dc=document.getElementById('donut-container');
-      if(!dc)return;
-      const total=expenses+savings;
-      if(total===0){dc.innerHTML='<p style="font-size:12px;color:var(--text3)">Sin gastos este ciclo</p>';return;}
-      const colors=['#2563eb','#dc2626','#1a9e6e','#d97706','#7c3aed','#ea580c','#0891b2','#65a30d'];
-      const circ=2*Math.PI*40;let offset=0;
-      let paths='';
-      catData.slice(0,7).forEach(([cat,val],i)=>{
-        const pct=val/total;const dash=pct*circ;const gap=circ-dash;
-        const angle=offset*2*Math.PI-Math.PI/2;
-        paths+='<circle cx="60" cy="60" r="40" fill="none" stroke="'+colors[i%colors.length]+'" stroke-width="18" stroke-dasharray="'+dash.toFixed(2)+' '+gap.toFixed(2)+'" stroke-dashoffset="'+(-(offset*circ)).toFixed(2)+'" transform="rotate(-90 60 60)"/>';
-        offset+=pct;
+          <span style="font-size:13px;font-weight:700;margin-right:8px;color:${color}">${sign}${(tx.amount||0).toFixed(2)}€</span>`;
+        const editBtn=document.createElement('button');
+        editBtn.style.cssText='background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px';
+        editBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        editBtn.onclick=()=>openEditTx(tx);
+        const delBtn=document.createElement('button');
+        delBtn.className='row-del';
+        delBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+        delBtn.onclick=()=>delTx(tx.id,tx.description||tx.category);
+        row.appendChild(editBtn);row.appendChild(delBtn);
+        card.appendChild(row);
       });
-      const legend=catData.slice(0,7).map(([cat,val],i)=>{
-        const pct=total>0?Math.round(val/total*100):0;
-        return'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><div style="width:8px;height:8px;border-radius:50%;background:'+colors[i%colors.length]+';flex-shrink:0"></div><span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cat+'</span><span style="font-size:11px;font-weight:600;color:var(--text2)">'+pct+'%</span></div>';
-      }).join('');
-      dc.innerHTML='<svg viewBox="0 0 120 120" style="width:90px;height:90px;flex-shrink:0">'+paths+'<circle cx="60" cy="60" r="28" fill="white"/><text x="60" y="56" text-anchor="middle" font-size="9" fill="#999" font-family="DM Sans">Total</text><text x="60" y="70" text-anchor="middle" font-size="9" fill="#0a0a0a" font-family="DM Sans" font-weight="700">'+Math.round(total)+'€</text></svg><div style="flex:1;min-width:0">'+legend+'</div>';
-    },50);
+    }
+    body.appendChild(card);
+
+  // ── RECURRENTES ────────────────────────────────────────────────────────────
+  } else if(tab==='recurrentes'){
+    const recDiv=document.createElement('div');
+    recDiv.style.marginBottom='10px';
+
+    // Nav row
+    const recNav=document.createElement('div');
+    recNav.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+    const pillsDiv=document.createElement('div');
+    pillsDiv.style.cssText='display:flex;gap:6px';
+    ['fijos','variables'].forEach(rt=>{
+      const btn=document.createElement('button');
+      btn.textContent=rt.charAt(0).toUpperCase()+rt.slice(1);
+      btn.style.cssText='padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'';
+      btn.style.background=recurTab===rt?'var(--text)':'var(--bg3)';
+      btn.style.color=recurTab===rt?'#fff':'var(--text2)';
+      btn.onclick=()=>{S.recurTab=rt;renderFinances();};
+      pillsDiv.appendChild(btn);
+    });
+    const calBtn=document.createElement('button');
+    calBtn.textContent='📅 Calendario';
+    calBtn.style.cssText='padding:6px 12px;background:var(--blue-bg);border:none;border-radius:8px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'';
+    calBtn.onclick=()=>openModal('modal-calendar');
+    recNav.appendChild(pillsDiv);recNav.appendChild(calBtn);
+    recDiv.appendChild(recNav);
+
+    if(recurTab==='fijos'){
+      const fixedList=recurringTemplates;
+      if(!fixedList.length){
+        const empty=document.createElement('p');
+        empty.style.cssText='font-size:13px;color:var(--text3);text-align:center;padding:24px';
+        empty.textContent='Sin gastos recurrentes';
+        recDiv.appendChild(empty);
+      } else {
+        fixedList.forEach(tx=>{
+          const card=document.createElement('div');
+          card.className='card';card.style.cssText='margin-bottom:8px;display:flex;align-items:center;gap:12px';
+          const dayNum=new Date(tx.date+'T12:00:00').getDate();
+          card.innerHTML=`<div class="row-icon" style="background:var(--red-bg)">🔁</div>
+            <div style="flex:1;min-width:0">
+              <div class="row-name">${tx.description||tx.category}</div>
+              <div class="row-sub">${tx.category} · día ${dayNum} de cada mes</div>
+            </div>
+            <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>`;
+          const cancelBtn=document.createElement('button');
+          cancelBtn.textContent='Cancelar';
+          cancelBtn.style.cssText='font-size:10px;padding:4px 10px;background:var(--amber-bg);border:none;border-radius:8px;color:var(--amber);cursor:pointer;font-family:'DM Sans';font-weight:600';
+          cancelBtn.onclick=()=>toggleRecurring(tx.id);
+          card.appendChild(cancelBtn);
+          recDiv.appendChild(card);
+        });
+      }
+    } else {
+      // Variables
+      const varTxs=ptxs.filter(t=>t.type==='expense'&&!t.is_recurring&&t.category!=='Ahorro / Inversión');
+      if(!varTxs.length){
+        const empty=document.createElement('p');
+        empty.style.cssText='font-size:13px;color:var(--text3);text-align:center;padding:24px';
+        empty.textContent='Sin gastos variables este ciclo';
+        recDiv.appendChild(empty);
+      } else {
+        varTxs.forEach(tx=>{
+          const card=document.createElement('div');
+          card.className='card';card.style.cssText='margin-bottom:8px;display:flex;align-items:center;gap:12px';
+          card.innerHTML=`<div class="row-icon" style="background:var(--red-bg)">💸</div>
+            <div style="flex:1;min-width:0">
+              <div class="row-name">${tx.description||tx.category}</div>
+              <div class="row-sub">${tx.category} · ${tx.date}</div>
+            </div>
+            <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>`;
+          recDiv.appendChild(card);
+        });
+      }
+    }
+    body.appendChild(recDiv);
   }
-  // Populate expense categories modal
+
+  // Populate selects
   const expCatSel=document.getElementById('exp-cat');
   if(expCatSel){expCatSel.innerHTML='';getExpenseCats().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;expCatSel.appendChild(o);});}
   const incCatSel=document.getElementById('inc-cat');
   if(incCatSel){incCatSel.innerHTML='';getIncomeCats().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;incCatSel.appendChild(o);});}
 }
 
-function openEditTxById(id){const tx=S.transactions&&S.transactions.find(t=>t.id===id);if(tx)openEditTx(tx);}
-function openEditTx(tx){
-  S.editingTx=tx;
-  document.getElementById('etx-amount').value=tx.amount||'';
-  document.getElementById('etx-desc').value=tx.description||'';
-  document.getElementById('etx-date').value=tx.date||today;
-  // Populate categories
-  const sel=document.getElementById('etx-cat');
-  sel.innerHTML='';
-  const cats=tx.type==='income'?getIncomeCats():getExpenseCats();
-  cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;if(c===tx.category)o.selected=true;sel.appendChild(o);});
-  const recurring=document.getElementById('etx-recurring');
-  if(recurring){recurring.classList.toggle('on',!!tx.is_recurring);}
-  openModal('modal-edit-tx');
-}
+
 async function saveEditTx(){
   if(!S.editingTx)return;
   const payload={amount:parseFloat(document.getElementById('etx-amount').value)||S.editingTx.amount,description:document.getElementById('etx-desc').value,category:document.getElementById('etx-cat').value,date:document.getElementById('etx-date').value||today,is_recurring:document.getElementById('etx-recurring').classList.contains('on')};
@@ -925,10 +1006,10 @@ async function renderNutrition(){
         <input type="date" value="${S.nutritionDate}" onchange="S.nutritionDate=this.value;renderNutrition()" style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:6px 10px;color:var(--text);font-size:14px;outline:none"/>
       </div>
       <div class="grid4" style="margin-bottom:10px">
-        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.calories}</div><div class="lbl">Kcal</div></div>
-        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.protein}g</div><div class="lbl">Prot</div></div>
-        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.carbs}g</div><div class="lbl">Carbs</div></div>
-        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.fat}g</div><div class="lbl">Grasa</div></div>
+        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.calories}</div><div class="lbl" style="font-size:9px">/${calGoal} kcal</div></div>
+        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.protein}g</div><div class="lbl" style="font-size:9px">/${Math.round(calGoal*0.30/4)}g Prot</div></div>
+        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.carbs}g</div><div class="lbl" style="font-size:9px">/${Math.round(calGoal*0.45/4)}g Carbs</div></div>
+        <div class="card stat-mini"><div class="val" style="font-size:17px">${tot.fat}g</div><div class="lbl" style="font-size:9px">/${Math.round(calGoal*0.25/9)}g Grasa</div></div>
       </div>
       <div class="card" style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11px;color:var(--text2)">Progreso</span><span style="font-size:11px;font-weight:600">${tot.calories} / ${calGoal} kcal</span></div>
@@ -1113,6 +1194,7 @@ async function renderExercise(){
   const sEmoji={gym:'🏋️',running:'🏃',walking:'🚶',cycling:'🚴',swimming:'🏊',yoga:'🧘',other:'⚡'};
   const sLabel={gym:'Gimnasio',running:'Correr',walking:'Andar',cycling:'Ciclismo',swimming:'Natación',yoga:'Yoga',other:'Otro'};
   const weekDays=getWeekDays();const weekEx=exs.filter(e=>weekDays.includes(e.date));
+
   el.innerHTML=`
     <div class="page-header">
       <div><h1 class="page-title">Ejercicio</h1></div>
@@ -1126,25 +1208,53 @@ async function renderExercise(){
         <div class="stat-mini"><div class="val">${weekEx.reduce((a,e)=>a+(e.duration_minutes||0),0)}</div><div class="lbl">minutos</div></div>
       </div>
     </div>
-    ${exs.length===0?`<div class="empty"><div class="empty-icon">💪</div><p>Sin entrenamientos registrados</p></div>`:
-      exs.map(ex=>`<div class="card" style="margin-bottom:10px">
-        <div style="display:flex;align-items:start;gap:12px">
-          <span style="font-size:26px;margin-top:2px">${sEmoji[ex.sport_type]||'⚡'}</span>
-          <div style="flex:1;min-width:0">
-            <p style="font-size:14px;font-weight:600">${sLabel[ex.sport_type]||ex.sport_type}</p>
-            <p style="font-size:11px;color:var(--text3);margin-bottom:6px">${ex.date}</p>
-            <div style="display:flex;flex-wrap:wrap;gap:5px">
-              <span class="badge badge-blue">⏱ ${ex.duration_minutes} min</span>
-              ${ex.calories_burned?`<span class="badge badge-amber">🔥 ${ex.calories_burned} kcal</span>`:''}
-              ${ex.distance_km?`<span class="badge badge-green">${ex.distance_km} km</span>`:''}
-            </div>
-            ${ex.muscle_groups?.length?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${ex.muscle_groups.map(mg=>`<span style="font-size:10px;background:var(--orange-bg);color:var(--orange);padding:2px 8px;border-radius:20px">${mg}</span>`).join('')}</div>`:''}
-          </div>
-          <button onclick="openEditExById('${ex.id}'))" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          <button class="row-del" onclick="delEx('${ex.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+    <div id="ex-list"></div>`;
+
+  const exList=document.getElementById('ex-list');
+  if(!exs.length){
+    exList.innerHTML='<div class="empty"><div class="empty-icon">💪</div><p>Sin entrenamientos registrados</p></div>';
+    return;
+  }
+
+  exs.forEach(ex=>{
+    const card=document.createElement('div');
+    card.className='card';card.style.marginBottom='10px';
+
+    const mgHtml=ex.muscle_groups?.length
+      ?'<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'+ex.muscle_groups.map(mg=>'<span style="font-size:10px;background:var(--orange-bg);color:var(--orange);padding:2px 8px;border-radius:20px">'+mg+'</span>').join('')+'</div>'
+      :'';
+
+    card.innerHTML=`<div style="display:flex;align-items:start;gap:12px">
+      <span style="font-size:26px;margin-top:2px">${sEmoji[ex.sport_type]||'⚡'}</span>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:14px;font-weight:600">${sLabel[ex.sport_type]||ex.sport_type}</p>
+        <p style="font-size:11px;color:var(--text3);margin-bottom:6px">${ex.date}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          <span class="badge badge-blue">⏱ ${ex.duration_minutes} min</span>
+          ${ex.calories_burned?'<span class="badge badge-amber">🔥 '+ex.calories_burned+' kcal</span>':''}
+          ${ex.distance_km?'<span class="badge badge-green">'+ex.distance_km+' km</span>':''}
         </div>
-      </div>`).join('')}`;
+        ${mgHtml}
+      </div>
+      <div id="ex-btns-${ex.id}"></div>
+    </div>`;
+
+    // Add buttons via DOM to avoid any escaping issues
+    const btnDiv=card.querySelector('#ex-btns-'+ex.id);
+    const editBtn=document.createElement('button');
+    editBtn.style.cssText='background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px';
+    editBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    editBtn.onclick=()=>openEditEx(ex);
+    const delBtn=document.createElement('button');
+    delBtn.className='row-del';
+    delBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+    delBtn.onclick=()=>delEx(ex.id);
+    btnDiv.appendChild(editBtn);btnDiv.appendChild(delBtn);
+
+    exList.appendChild(card);
+  });
 }
+
 async function delEx(id){
   const ex=S.exercises?.find(e=>e.id===id);
   await db.delete('exercises',id);
