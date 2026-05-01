@@ -1175,7 +1175,7 @@ function openMacroEdit(id,name,cal,pro,car,fat){
   document.getElementById('me-fat').value=fat;
   openModal('modal-macro-edit');
 }
-async function saveMacroEdit(){
+async async function saveMacroEdit(){
   const{id}=S.editingMacroMeal;
   await db.update('meals',id,{calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0});
   closeModal('modal-macro-edit');renderNutrition();
@@ -2097,86 +2097,7 @@ initApp();
             <button onclick="openEditTxById('${tx.id}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="row-del" onclick="delTx('${tx.id}','${tx.description||tx.category}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
           </div>`).join('')}
       </div>
-    `:`
-      <!-- RECURRENTES -->
-      <div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div style="display:flex;gap:6px">
-            <button onclick="S.recurTab='fijos';renderFinances()" style="padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans';background:${(S.recurTab||'fijos')==='fijos'?'var(--text)':'var(--bg3)'};color:${(S.recurTab||'fijos')==='fijos'?'#fff':'var(--text2)'}">Fijos</button>
-            <button onclick="S.recurTab='variables';renderFinances()" style="padding:6px 14px;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans';background:${(S.recurTab||'fijos')==='variables'?'var(--text)':'var(--bg3)'};color:${(S.recurTab||'fijos')==='variables'?'#fff':'var(--text2)'}">Variables</button>
-          </div>
-          <button onclick="openModal('modal-calendar')" style="padding:6px 12px;background:var(--blue-bg);border:none;border-radius:8px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">📅 Calendario</button>
-        </div>
-        ${(S.recurTab||'fijos')==='variables'?`
-        <div>
-          ${ptxs.filter(t=>t.type==='expense'&&!t.is_recurring&&t.category!=='Ahorro / Inversión').length===0?'<p style="font-size:13px;color:var(--text3);text-align:center;padding:24px">Sin gastos variables este ciclo</p>':
-            ptxs.filter(t=>t.type==='expense'&&!t.is_recurring&&t.category!=='Ahorro / Inversión').map(tx=>`<div class="card" style="margin-bottom:8px;display:flex;align-items:center;gap:12px">
-              <div class="row-icon" style="background:var(--red-bg)">💸</div>
-              <div style="flex:1;min-width:0"><div class="row-name">${tx.description||tx.category}</div><div class="row-sub">${tx.category} · ${tx.date}</div></div>
-              <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>
-            </div>`).join('')}
-        </div>`:``}
-        ${(S.recurTab||'fijos')!=='variables'?`<span style="display:none"></span>`:''}
-        ${(S.recurTab||'fijos')==='fijos'?`<span style="font-size:10px;color:var(--text3)">Gastos fijos configurados</span>`:``}
-        ${S.transactions.filter(t=>t.is_recurring&&t.type==='expense').reduce((acc,t)=>{
-          if(!acc.find(a=>a.description===t.description&&a.category===t.category))acc.push(t);return acc;
-        },[]).map(tx=>`<div class="card" style="margin-bottom:8px;display:flex;align-items:center;gap:12px">
-          <div class="row-icon" style="background:var(--red-bg)">🔁</div>
-          <div style="flex:1;min-width:0">
-            <div class="row-name">${tx.description||tx.category}</div>
-            <div class="row-sub">${tx.category} · día ${new Date(tx.date+'T12:00:00').getDate()} de cada mes</div>
-          </div>
-          <span style="font-size:13px;font-weight:700;color:var(--red);margin-right:8px">-${(tx.amount||0).toFixed(2)}€</span>
-          <button onclick="toggleRecurring('${tx.id}')" style="font-size:10px;padding:4px 10px;background:var(--amber-bg);border:none;border-radius:8px;color:var(--amber);cursor:pointer;font-family:'DM Sans';font-weight:600">Cancelar</button>
-        </div>`).join('')||'<p style="font-size:13px;color:var(--text3);text-align:center;padding:24px">Sin gastos recurrentes</p>'}
-      </div>
-    `}
-  `;
-  // Render donut chart if on resumen tab
-  if(tab==='resumen'&&catData.length>0){
-    setTimeout(()=>{
-      const dc=document.getElementById('donut-container');
-      if(!dc)return;
-      const total=expenses+savings;
-      if(total===0){dc.innerHTML='<p style="font-size:12px;color:var(--text3)">Sin gastos este ciclo</p>';return;}
-      const colors=['#2563eb','#dc2626','#1a9e6e','#d97706','#7c3aed','#ea580c','#0891b2','#65a30d'];
-      const circ=2*Math.PI*40;let offset=0;
-      let paths='';
-      catData.slice(0,7).forEach(([cat,val],i)=>{
-        const pct=val/total;const dash=pct*circ;const gap=circ-dash;
-        const angle=offset*2*Math.PI-Math.PI/2;
-        paths+='<circle cx="60" cy="60" r="40" fill="none" stroke="'+colors[i%colors.length]+'" stroke-width="18" stroke-dasharray="'+dash.toFixed(2)+' '+gap.toFixed(2)+'" stroke-dashoffset="'+(-(offset*circ)).toFixed(2)+'" transform="rotate(-90 60 60)"/>';
-        offset+=pct;
-      });
-      const legend=catData.slice(0,7).map(([cat,val],i)=>{
-        const pct=total>0?Math.round(val/total*100):0;
-        return'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><div style="width:8px;height:8px;border-radius:50%;background:'+colors[i%colors.length]+';flex-shrink:0"></div><span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cat+'</span><span style="font-size:11px;font-weight:600;color:var(--text2)">'+pct+'%</span></div>';
-      }).join('');
-      dc.innerHTML='<svg viewBox="0 0 120 120" style="width:90px;height:90px;flex-shrink:0">'+paths+'<circle cx="60" cy="60" r="28" fill="white"/><text x="60" y="56" text-anchor="middle" font-size="9" fill="#999" font-family="DM Sans">Total</text><text x="60" y="70" text-anchor="middle" font-size="9" fill="#0a0a0a" font-family="DM Sans" font-weight="700">'+Math.round(total)+'€</text></svg><div style="flex:1;min-width:0">'+legend+'</div>';
-    },50);
-  }
-  // Populate expense categories modal
-  const expCatSel=document.getElementById('exp-cat');
-  if(expCatSel){expCatSel.innerHTML='';getExpenseCats().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;expCatSel.appendChild(o);});}
-  const incCatSel=document.getElementById('inc-cat');
-  if(incCatSel){incCatSel.innerHTML='';getIncomeCats().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;incCatSel.appendChild(o);});}
-}
 
-function openEditTxById(id){const tx=S.transactions&&S.transactions.find(t=>t.id===id);if(tx)openEditTx(tx);}
-function openEditTx(tx){
-  S.editingTx=tx;
-  document.getElementById('etx-amount').value=tx.amount||'';
-  document.getElementById('etx-desc').value=tx.description||'';
-  document.getElementById('etx-date').value=tx.date||today;
-  // Populate categories
-  const sel=document.getElementById('etx-cat');
-  sel.innerHTML='';
-  const cats=tx.type==='income'?getIncomeCats():getExpenseCats();
-  cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;if(c===tx.category)o.selected=true;sel.appendChild(o);});
-  const recurring=document.getElementById('etx-recurring');
-  if(recurring){recurring.classList.toggle('on',!!tx.is_recurring);}
-  openModal('modal-edit-tx');
-}
 async function saveEditTx(){
   if(!S.editingTx)return;
   const payload={amount:parseFloat(document.getElementById('etx-amount').value)||S.editingTx.amount,description:document.getElementById('etx-desc').value,category:document.getElementById('etx-cat').value,date:document.getElementById('etx-date').value||today,is_recurring:document.getElementById('etx-recurring').classList.contains('on')};
@@ -2268,7 +2189,7 @@ function openMacroEdit(id,name,cal,pro,car,fat){
   document.getElementById('me-fat').value=fat;
   openModal('modal-macro-edit');
 }
-async function saveMacroEdit(){
+async async function saveMacroEdit(){
   const{id}=S.editingMacroMeal;
   await db.update('meals',id,{calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0});
   closeModal('modal-macro-edit');renderNutrition();
