@@ -169,6 +169,7 @@
     <div class="field"><label>Descripción</label><input type="text" id="etx-desc"/></div>
     <div class="field"><label>Categoría</label><select id="etx-cat"></select></div>
     <div class="field"><label>Fecha</label><input type="date" id="etx-date"/></div>
+    <div class="field"><div class="switch-row"><span>Gasto recurrente mensual</span><button class="switch" id="etx-recurring" onclick="this.classList.toggle('on')"></button></div></div>
     <button class="btn btn-primary" onclick="saveEditTx()">Guardar cambios</button>
   </div>
 </div>
@@ -756,11 +757,13 @@ function openEditTx(tx){
   sel.innerHTML='';
   const cats=tx.type==='income'?getIncomeCats():getExpenseCats();
   cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;if(c===tx.category)o.selected=true;sel.appendChild(o);});
+  const recurring=document.getElementById('etx-recurring');
+  if(recurring){recurring.classList.toggle('on',!!tx.is_recurring);}
   openModal('modal-edit-tx');
 }
 async function saveEditTx(){
   if(!S.editingTx)return;
-  const payload={amount:parseFloat(document.getElementById('etx-amount').value)||S.editingTx.amount,description:document.getElementById('etx-desc').value,category:document.getElementById('etx-cat').value,date:document.getElementById('etx-date').value||today};
+  const payload={amount:parseFloat(document.getElementById('etx-amount').value)||S.editingTx.amount,description:document.getElementById('etx-desc').value,category:document.getElementById('etx-cat').value,date:document.getElementById('etx-date').value||today,is_recurring:document.getElementById('etx-recurring').classList.contains('on')};
   await db.update('transactions',S.editingTx.id,payload);
   S.transactions=[];closeModal('modal-edit-tx');renderFinances();
 }
