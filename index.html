@@ -429,8 +429,14 @@ function getWeekDays(){
 function getLast14Days(){
   return Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return d.toISOString().split('T')[0];});
 }
-function getExpenseCats(){return[...(S.settings?.custom_expense_cats||[]),...DEFAULT_EXPENSE_CATS.filter(c=>!(S.settings?.removed_expense_cats||[]).includes(c))];}
-function getIncomeCats(){return[...(S.settings?.custom_income_cats||[]),...DEFAULT_INCOME_CATS.filter(c=>!(S.settings?.removed_income_cats||[]).includes(c))];}
+function getExpenseCats(){
+  if(S.settings?.expense_cat_order?.length)return S.settings.expense_cat_order;
+  return[...(S.settings?.custom_expense_cats||[]),...DEFAULT_EXPENSE_CATS.filter(c=>!(S.settings?.removed_expense_cats||[]).includes(c))];
+}
+function getIncomeCats(){
+  if(S.settings?.income_cat_order?.length)return S.settings.income_cat_order;
+  return[...(S.settings?.custom_income_cats||[]),...DEFAULT_INCOME_CATS.filter(c=>!(S.settings?.removed_income_cats||[]).includes(c))];
+}
 
 // ─── UNDO ────────────────────────────────────────────────────────────────────
 function showUndo(msg,undoFn){
@@ -1426,10 +1432,14 @@ async function renderSettings(){
     </div>
     <div class="settings-section">
       <h2>Categorías de gastos</h2>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-        ${expCats.map(c=>`<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:0.5px solid var(--border);border-radius:20px;padding:4px 10px">
-          <span style="font-size:12px">${c}</span>
-          ${!DEFAULT_EXPENSE_CATS.includes(c)||true?`<button onclick="removeCat('expense','${c}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 4px">×</button>`:''}
+      <div id="exp-cats-list" style="margin-bottom:10px">
+        ${expCats.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f8f8f8">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <button onclick="moveCat('expense',${i},-1)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;line-height:1;padding:1px 4px" ${i===0?'disabled':''}>▲</button>
+            <button onclick="moveCat('expense',${i},1)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;line-height:1;padding:1px 4px" ${i===expCats.length-1?'disabled':''}>▼</button>
+          </div>
+          <span style="font-size:13px;flex:1">${c}</span>
+          <button onclick="removeCat('expense','${c}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px">×</button>
         </div>`).join('')}
       </div>
       <div style="display:flex;gap:8px">
@@ -1439,10 +1449,14 @@ async function renderSettings(){
     </div>
     <div class="settings-section">
       <h2>Categorías de ingresos</h2>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-        ${incCats.map(c=>`<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:0.5px solid var(--border);border-radius:20px;padding:4px 10px">
-          <span style="font-size:12px">${c}</span>
-          <button onclick="removeCat('income','${c}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 4px">×</button>
+      <div id="inc-cats-list" style="margin-bottom:10px">
+        ${incCats.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f8f8f8">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <button onclick="moveCat('income',${i},-1)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;line-height:1;padding:1px 4px" ${i===0?'disabled':''}>▲</button>
+            <button onclick="moveCat('income',${i},1)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;line-height:1;padding:1px 4px" ${i===incCats.length-1?'disabled':''}>▼</button>
+          </div>
+          <span style="font-size:13px;flex:1">${c}</span>
+          <button onclick="removeCat('income','${c}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px">×</button>
         </div>`).join('')}
       </div>
       <div style="display:flex;gap:8px">
@@ -1488,6 +1502,28 @@ async function loadGoalsList(){
   gl.innerHTML=html;
 }
 
+async function moveCat(type, idx, dir){
+  const customKey=type==='expense'?'custom_expense_cats':'custom_income_cats';
+  const removedKey=type==='expense'?'removed_expense_cats':'removed_income_cats';
+  const defaults=type==='expense'?DEFAULT_EXPENSE_CATS:DEFAULT_INCOME_CATS;
+  // Get full ordered list
+  const cats=type==='expense'?getExpenseCats():getIncomeCats();
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=cats.length)return;
+  // Swap
+  [cats[idx],cats[newIdx]]=[cats[newIdx],cats[idx]];
+  // Split back into custom and removed
+  const custom=cats.filter(c=>!defaults.includes(c));
+  const removed=defaults.filter(c=>!cats.includes(c));
+  // Reorder defaults based on new cats order
+  const payload={[customKey]:custom,[removedKey]:removed};
+  // Store full ordered list as custom_order
+  const orderKey=type==='expense'?'expense_cat_order':'income_cat_order';
+  payload[orderKey]=cats;
+  if(S.settings?.id)await db.update('user_settings',S.settings.id,payload);
+  if(S.settings)Object.assign(S.settings,payload);
+  renderSettings();
+}
 async function addCat(type){
   const inputId=type==='expense'?'new-exp-cat':'new-inc-cat';
   const val=document.getElementById(inputId).value.trim();
