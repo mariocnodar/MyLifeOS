@@ -1464,6 +1464,7 @@ async function renderTrips(){
   const mapCard=document.createElement('div');
   mapCard.className='card';mapCard.style.marginBottom='16px';
   mapCard.innerHTML='<div class="card-label" style="margin-bottom:8px">Países visitados · '+visitedCountries.length+' destinos</div>'+buildWorldMapSVG(visitedCountries);
+  setTimeout(()=>renderWorldMapD3(visitedCountries,'world-map-svg-container'),100);
   el.appendChild(mapCard);
 
   // Trip cards
@@ -1501,262 +1502,162 @@ async function renderTrips(){
 }
 
 function buildWorldMapSVG(visitedDests){
+  // Returns placeholder while async map loads
+  return '<div id="world-map-svg-container" style="width:100%;height:180px;background:#c8dff0;border-radius:8px;display:flex;align-items:center;justify-content:center"><span style="color:#666;font-size:12px">Cargando mapa...</span></div>';
+}
+
+async function renderWorldMapD3(visitedDests, containerId){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
   const COUNTRY_MAP={
-    'españa':'es','spain':'es','madrid':'es','barcelona':'es','sevilla':'es','valencia':'es','bilbao':'es','málaga':'es','malaga':'es',
-    'france':'fr','paris':'fr','lyon':'fr','niza':'fr','francia':'fr','marsella':'fr','burdeos':'fr',
-    'italy':'it','rome':'it','milan':'it','roma':'it','italia':'it','venecia':'it','florencia':'it','nápoles':'it','napoles':'it',
-    'portugal':'pt','lisbon':'pt','lisboa':'pt','porto':'pt','faro':'pt',
-    'germany':'de','berlin':'de','munich':'de','alemania':'de','hamburgo':'de','frankfurt':'de',
-    'uk':'gb','london':'gb','england':'gb','reino unido':'gb','londres':'gb','scotland':'gb','edinburgh':'gb','manchester':'gb',
-    'japan':'jp','tokyo':'jp','osaka':'jp','japón':'jp','japon':'jp','kyoto':'jp','tokio':'jp',
-    'usa':'us','new york':'us','los angeles':'us','miami':'us','estados unidos':'us','eeuu':'us','chicago':'us','san francisco':'us',
-    'mexico':'mx','mexico city':'mx','cancun':'mx','méxico':'mx','ciudad de méxico':'mx',
-    'greece':'gr','athens':'gr','grecia':'gr','atenas':'gr','santorini':'gr','mykonos':'gr','tesalónica':'gr',
-    'netherlands':'nl','amsterdam':'nl','países bajos':'nl','rotterdam':'nl','holanda':'nl',
-    'thailand':'th','bangkok':'th','tailandia':'th','phuket':'th','chiang mai':'th',
-    'morocco':'ma','marrakech':'ma','marruecos':'ma','casablanca':'ma','fez':'ma',
-    'turkey':'tr','istanbul':'tr','turquía':'tr','turquia':'tr','antalya':'tr','ankara':'tr',
-    'brazil':'br','rio de janeiro':'br','brasil':'br','sao paulo':'br','salvador':'br',
-    'argentina':'ar','buenos aires':'ar','mendoza':'ar','córdoba':'ar',
-    'colombia':'co','bogota':'co','cartagena':'co','medellín':'co','medellin':'co',
-    'peru':'pe','lima':'pe','cusco':'pe','machu picchu':'pe','perú':'pe',
-    'china':'cn','beijing':'cn','shanghai':'cn','guangzhou':'cn','pekin':'cn',
-    'australia':'au','sydney':'au','melbourne':'au','brisbane':'au','perth':'au',
-    'canada':'ca','toronto':'ca','vancouver':'ca','montreal':'ca',
-    'india':'in','delhi':'in','mumbai':'in','bombay':'in','calcuta':'in',
-    'indonesia':'id','bali':'id','jakarta':'id',
-    'vietnam':'vn','hanoi':'vn','ho chi minh':'vn','saigón':'vn',
-    'czech republic':'cz','prague':'cz','praga':'cz','república checa':'cz',
-    'austria':'at','vienna':'at','viena':'at','salzburgo':'at',
-    'switzerland':'ch','zurich':'ch','suiza':'ch','geneva':'ch','ginebra':'ch','berna':'ch',
-    'belgium':'be','brussels':'be','bélgica':'be','brujas':'be','bruselas':'be',
-    'sweden':'se','stockholm':'se','suecia':'se','gotemburgo':'se',
-    'norway':'no','oslo':'no','noruega':'no','bergen':'no',
-    'denmark':'dk','copenhagen':'dk','dinamarca':'dk','copenhague':'dk',
-    'poland':'pl','warsaw':'pl','cracow':'pl','polonia':'pl','varsovia':'pl','cracovia':'pl',
-    'hungary':'hu','budapest':'hu','hungría':'hu','hungria':'hu',
-    'croatia':'hr','zagreb':'hr','split':'hr','dubrovnik':'hr','croacia':'hr',
-    'cuba':'cu','la habana':'cu','havana':'cu','varadero':'cu',
-    'dominican republic':'do','punta cana':'do','república dominicana':'do','santo domingo':'do',
-    'russia':'ru','moscow':'ru','moscú':'ru','rusia':'ru','san petersburgo':'ru',
-    'south africa':'za','cape town':'za','sudáfrica':'za','johannesburgo':'za',
-    'egypt':'eg','cairo':'eg','egipto':'eg','luxor':'eg','alejandría':'eg',
-    'kenya':'ke','nairobi':'ke','mombasa':'ke',
-    'new zealand':'nz','auckland':'nz','nueva zelanda':'nz','wellington':'nz',
-    'singapore':'sg','singapur':'sg',
-    'malaysia':'my','kuala lumpur':'my','malasia':'my','penang':'my',
-    'south korea':'kr','seoul':'kr','corea del sur':'kr','busan':'kr','seúl':'kr',
-    'taiwan':'tw','taipei':'tw',
-    'cambodia':'kh','siem reap':'kh','camboya':'kh','phnom penh':'kh',
-    'iceland':'is','reykjavik':'is','islandia':'is',
-    'finland':'fi','helsinki':'fi','finlandia':'fi',
-    'ireland':'ie','dublin':'ie','irlanda':'ie',
-    'chile':'cl','santiago':'cl','valparaíso':'cl',
-    'ecuador':'ec','quito':'ec','galápagos':'ec',
-    'bolivia':'bo','la paz':'bo','sucre':'bo',
-    'uruguay':'uy','montevideo':'uy',
-    'costa rica':'cr','san jose':'cr','san josé':'cr',
-    'panama':'pa','ciudad de panamá':'pa',
-    'israel':'il','tel aviv':'il','jerusalem':'il','jerusalén':'il',
-    'uae':'ae','dubai':'ae','abu dhabi':'ae','emiratos':'ae',
-    'jordan':'jo','amman':'jo','petra':'jo',
-    'nepal':'np','kathmandu':'np','katmandú':'np',
-    'sri lanka':'lk','colombo':'lk',
-    'philippines':'ph','manila':'ph','filipinas':'ph','boracay':'ph',
-    'myanmar':'mm','yangon':'mm','birmania':'mm',
-    'laos':'la','vientiane':'la',
-    'georgia':'ge','tbilisi':'ge',
-    'ukraine':'ua','kyiv':'ua','ucrania':'ua','kiev':'ua',
-    'romania':'ro','bucharest':'ro','rumania':'ro','bucarest':'ro',
-    'bulgaria':'bg','sofia':'bg',
-    'serbia':'rs','belgrade':'rs','belgrado':'rs',
-    'tanzania':'tz','dar es salaam':'tz','zanzibar':'tz',
-    'ethiopia':'et','addis ababa':'et','adis abeba':'et',
-    'ghana':'gh','accra':'gh',
-    'senegal':'sn','dakar':'sn',
-    'kazakhstan':'kz','almaty':'kz',
-    'uzbekistan':'uz','samarkand':'uz','tashkent':'uz',
-    'armenia':'am','yerevan':'am','ereván':'am',
-    'azerbaijan':'az','baku':'az','bakú':'az',
-    'mongolia':'mn','ulaanbaatar':'mn','ulán bator':'mn',
-    'pakistan':'pk','karachi':'pk','lahore':'pk',
-    'nigeria':'ng','lagos':'ng','abuja':'ng',
-    'saudi arabia':'sa','riyadh':'sa','riad':'sa','arabia saudí':'sa',
-    'iran':'ir','tehran':'ir','teherán':'ir',
-    'iraq':'iq','baghdad':'iq','bagdad':'iq',
-    'nicaragua':'ni','managua':'ni',
-    'guatemala':'gt','guatemala city':'gt',
-    'honduras':'hn','tegucigalpa':'hn',
-    'el salvador':'sv','san salvador':'sv',
-    'paraguay':'py','asunción':'py','asuncion':'py',
-    'venezuela':'ve','caracas':'ve',
-    'cuba':'cu','la habana':'cu'
+    'españa':'724','spain':'724','madrid':'724','barcelona':'724','sevilla':'724','valencia':'724',
+    'france':'250','paris':'250','lyon':'250','niza':'250','francia':'250',
+    'italy':'380','rome':'380','milan':'380','roma':'380','italia':'380','venecia':'380','florencia':'380',
+    'portugal':'620','lisbon':'620','lisboa':'620','porto':'620',
+    'germany':'276','berlin':'276','munich':'276','alemania':'276',
+    'uk':'826','london':'826','england':'826','reino unido':'826','londres':'826','scotland':'826',
+    'japan':'392','tokyo':'392','osaka':'392','japón':'392','japon':'392','tokio':'392',
+    'usa':'840','new york':'840','los angeles':'840','miami':'840','estados unidos':'840','eeuu':'840',
+    'mexico':'484','cancun':'484','méxico':'484',
+    'greece':'300','athens':'300','grecia':'300','atenas':'300','santorini':'300',
+    'netherlands':'528','amsterdam':'528','países bajos':'528','holanda':'528',
+    'thailand':'764','bangkok':'764','tailandia':'764',
+    'morocco':'504','marrakech':'504','marruecos':'504',
+    'turkey':'792','istanbul':'792','turquía':'792','turquia':'792',
+    'brazil':'76','rio de janeiro':'76','brasil':'76','sao paulo':'76',
+    'argentina':'32','buenos aires':'32',
+    'colombia':'170','bogota':'170','cartagena':'170',
+    'peru':'604','lima':'604','cusco':'604','perú':'604',
+    'china':'156','beijing':'156','shanghai':'156',
+    'australia':'36','sydney':'36','melbourne':'36',
+    'canada':'124','toronto':'124','vancouver':'124',
+    'india':'356','delhi':'356','mumbai':'356',
+    'indonesia':'360','bali':'360','jakarta':'360',
+    'vietnam':'704','hanoi':'704','ho chi minh':'704',
+    'czech republic':'203','prague':'203','praga':'203','república checa':'203',
+    'austria':'40','vienna':'40','viena':'40',
+    'switzerland':'756','zurich':'756','suiza':'756',
+    'belgium':'56','brussels':'56','bélgica':'56',
+    'sweden':'752','stockholm':'752','suecia':'752',
+    'norway':'578','oslo':'578','noruega':'578',
+    'denmark':'208','copenhagen':'208','dinamarca':'208',
+    'poland':'616','warsaw':'616','polonia':'616',
+    'hungary':'348','budapest':'348','hungría':'348',
+    'croatia':'191','zagreb':'191','dubrovnik':'191','croacia':'191',
+    'cuba':'192','la habana':'192','havana':'192',
+    'dominican republic':'214','punta cana':'214','república dominicana':'214',
+    'russia':'643','moscow':'643','moscú':'643','rusia':'643',
+    'south africa':'710','cape town':'710','sudáfrica':'710',
+    'egypt':'818','cairo':'818','egipto':'818',
+    'kenya':'404','nairobi':'404',
+    'new zealand':'554','auckland':'554','nueva zelanda':'554',
+    'singapore':'702','singapur':'702',
+    'malaysia':'458','kuala lumpur':'458','malasia':'458',
+    'south korea':'410','seoul':'410','corea del sur':'410','seúl':'410',
+    'taiwan':'158','taipei':'158',
+    'cambodia':'116','siem reap':'116','camboya':'116',
+    'iceland':'352','reykjavik':'352','islandia':'352',
+    'finland':'246','helsinki':'246','finlandia':'246',
+    'ireland':'372','dublin':'372','irlanda':'372',
+    'chile':'152','santiago':'152',
+    'ecuador':'218','quito':'218',
+    'bolivia':'68','la paz':'68',
+    'uruguay':'858','montevideo':'858',
+    'israel':'376','tel aviv':'376','jerusalem':'376',
+    'uae':'784','dubai':'784','emiratos':'784',
+    'jordan':'400','amman':'400','petra':'400',
+    'nepal':'524','kathmandu':'524',
+    'philippines':'608','manila':'608','filipinas':'608',
+    'ukraine':'804','kyiv':'804','ucrania':'804',
+    'romania':'642','bucharest':'642','rumania':'642',
+    'bulgaria':'100','sofia':'100',
+    'serbia':'688','belgrade':'688','belgrado':'688',
+    'georgia':'268','tbilisi':'268',
+    'myanmar':'104','yangon':'104',
+    'laos':'418','vientiane':'418',
+    'nigeria':'566','lagos':'566',
+    'ethiopia':'231','addis ababa':'231',
+    'ghana':'288','accra':'288',
+    'senegal':'686','dakar':'686',
+    'tanzania':'834','zanzibar':'834',
+    'kazakhstan':'398','almaty':'398',
+    'uzbekistan':'860','samarkand':'860',
+    'pakistan':'586','karachi':'586',
+    'sri lanka':'144','colombo':'144',
+    'iran':'364','tehran':'364',
+    'saudi arabia':'682','riyadh':'682','arabia saudí':'682',
+    'costa rica':'188','san josé':'188',
+    'panama':'591','ciudad de panamá':'591',
+    'venezuela':'862','caracas':'862',
+    'armenia':'51','yerevan':'51',
+    'azerbaijan':'31','baku':'31',
+    'mongolia':'496','ulaanbaatar':'496'
   };
 
-  const visitedCodes=new Set();
+  const visitedIds=new Set();
   visitedDests.forEach(dest=>{
     const d=dest.toLowerCase().trim();
-    if(COUNTRY_MAP[d])visitedCodes.add(COUNTRY_MAP[d]);
-    Object.entries(COUNTRY_MAP).forEach(([key,code])=>{
-      if(d.includes(key)||key.includes(d))visitedCodes.add(code);
+    if(COUNTRY_MAP[d])visitedIds.add(COUNTRY_MAP[d]);
+    Object.entries(COUNTRY_MAP).forEach(([key,id])=>{
+      if(d.includes(key)||key.includes(d))visitedIds.add(id);
     });
   });
 
-  // Use Natural Earth 110m simplified paths
-  // These are the actual country border paths from natural earth data
-  const PATHS={
-    'af':'M 608,147 L 614,142 L 620,143 L 626,138 L 632,140 L 635,148 L 630,155 L 622,158 L 612,155 Z',
-    'al':'M 278,104 L 282,100 L 285,103 L 283,108 L 278,107 Z',
-    'dz':'M 245,118 L 285,112 L 290,120 L 285,140 L 260,148 L 240,145 L 235,130 Z',
-    'ao':'M 270,195 L 295,193 L 298,210 L 288,218 L 268,215 Z',
-    'ar':'M 165,270 L 175,265 L 180,280 L 175,300 L 162,308 L 155,295 L 158,278 Z',
-    'am':'M 345,110 L 350,107 L 354,111 L 350,115 L 345,113 Z',
-    'au':'M 560,260 L 610,255 L 625,265 L 630,285 L 610,300 L 575,305 L 555,290 L 548,270 Z',
-    'at':'M 265,90 L 278,87 L 282,93 L 272,97 L 263,95 Z',
-    'az':'M 348,108 L 356,105 L 360,110 L 355,115 L 347,113 Z',
-    'be':'M 248,82 L 256,80 L 260,85 L 252,88 L 246,86 Z',
-    'bf':'M 250,155 L 262,152 L 265,160 L 255,165 L 248,162 Z',
-    'bg':'M 295,97 L 305,95 L 308,102 L 298,105 L 292,102 Z',
-    'bi':'M 302,188 L 306,185 L 309,190 L 304,193 Z',
-    'bj':'M 258,158 L 263,155 L 265,165 L 260,168 L 257,163 Z',
-    'bo':'M 165,218 L 178,215 L 182,228 L 172,235 L 163,230 Z',
-    'br':'M 155,195 L 195,185 L 205,200 L 195,225 L 172,235 L 150,225 L 142,208 Z',
-    'by':'M 295,72 L 308,68 L 312,77 L 300,82 L 292,78 Z',
-    'ca':'M 52,48 L 155,42 L 160,68 L 140,78 L 88,82 L 55,72 Z',
-    'cd':'M 285,178 L 310,172 L 318,188 L 308,205 L 285,208 L 278,192 Z',
-    'cf':'M 285,158 L 308,155 L 312,168 L 295,172 L 282,168 Z',
-    'cg':'M 278,178 L 288,175 L 290,188 L 280,192 Z',
-    'ch':'M 252,88 L 265,86 L 268,93 L 257,96 L 250,93 Z',
-    'ci':'M 238,160 L 252,157 L 254,168 L 242,172 L 236,167 Z',
-    'cl':'M 152,255 L 158,248 L 162,265 L 158,290 L 150,298 L 146,280 L 148,262 Z',
-    'cm':'M 268,158 L 280,155 L 283,170 L 272,175 L 265,168 Z',
-    'cn':'M 530,108 L 578,102 L 585,118 L 572,135 L 540,140 L 522,128 Z',
-    'co':'M 138,175 L 152,170 L 158,183 L 148,192 L 135,188 Z',
-    'cr':'M 120,163 L 128,160 L 130,167 L 122,170 Z',
-    'cu':'M 122,143 L 140,138 L 143,148 L 132,153 L 120,150 Z',
-    'cz':'M 268,82 L 280,79 L 283,86 L 271,90 L 265,87 Z',
-    'de':'M 255,72 L 272,68 L 278,80 L 265,88 L 252,83 Z',
-    'dj':'M 328,150 L 333,147 L 335,153 L 330,155 Z',
-    'dk':'M 256,60 L 265,57 L 268,65 L 260,68 L 254,65 Z',
-    'do':'M 145,145 L 152,142 L 153,150 L 146,152 Z',
-    'dz':'M 242,118 L 278,113 L 283,128 L 265,145 L 243,140 L 238,128 Z',
-    'ec':'M 128,185 L 138,182 L 140,193 L 130,197 L 125,192 Z',
-    'eg':'M 298,118 L 315,115 L 318,130 L 305,135 L 295,130 Z',
-    'er':'M 320,143 L 330,140 L 332,148 L 322,152 Z',
-    'es':'M 225,100 L 250,96 L 254,108 L 238,113 L 222,110 Z',
-    'et':'M 312,152 L 335,147 L 338,163 L 318,168 L 308,162 Z',
-    'fi':'M 280,45 L 295,38 L 300,55 L 288,65 L 276,58 Z',
-    'fr':'M 238,85 L 258,80 L 263,95 L 248,103 L 235,97 Z',
-    'ga':'M 268,178 L 280,175 L 282,188 L 270,192 Z',
-    'gb':'M 228,62 L 240,55 L 248,68 L 238,78 L 225,72 Z',
-    'ge':'M 325,103 L 338,100 L 341,107 L 328,111 Z',
-    'gh':'M 248,158 L 260,155 L 263,168 L 250,172 L 245,165 Z',
-    'gn':'M 222,158 L 235,155 L 237,165 L 225,170 L 220,165 Z',
-    'gr':'M 280,105 L 295,100 L 298,113 L 285,118 L 277,112 Z',
-    'gt':'M 110,155 L 120,152 L 122,162 L 113,165 Z',
-    'hn':'M 120,155 L 130,152 L 132,160 L 122,163 Z',
-    'hr':'M 265,93 L 278,89 L 281,97 L 269,100 L 263,97 Z',
-    'ht':'M 140,143 L 148,140 L 150,148 L 142,152 Z',
-    'hu':'M 272,85 L 285,82 L 288,90 L 275,94 L 269,91 Z',
-    'id':'M 565,185 L 615,178 L 620,193 L 600,200 L 565,202 L 558,192 Z',
-    'ie':'M 225,65 L 233,62 L 236,70 L 228,73 Z',
-    'il':'M 308,115 L 313,112 L 315,120 L 310,122 Z',
-    'in':'M 468,130 L 510,122 L 515,150 L 500,165 L 472,162 L 462,147 Z',
-    'iq':'M 328,112 L 345,108 L 348,122 L 333,128 L 325,122 Z',
-    'ir':'M 345,105 L 375,100 L 380,120 L 360,130 L 340,125 Z',
-    'is':'M 195,42 L 215,36 L 218,48 L 200,53 Z',
-    'it':'M 255,93 L 278,88 L 282,108 L 268,118 L 252,113 Z',
-    'jm':'M 132,150 L 140,148 L 141,154 L 133,156 Z',
-    'jo':'M 315,115 L 325,112 L 327,120 L 317,122 Z',
-    'jp':'M 570,93 L 590,86 L 595,102 L 578,108 L 567,103 Z',
-    'ke':'M 315,172 L 330,168 L 333,183 L 318,188 L 312,182 Z',
-    'kg':'M 462,100 L 480,97 L 482,107 L 465,110 L 460,106 Z',
-    'kh':'M 543,158 L 555,155 L 558,165 L 545,168 Z',
-    'kp':'M 570,83 L 582,80 L 585,90 L 572,93 Z',
-    'kr':'M 572,90 L 583,87 L 586,97 L 574,100 Z',
-    'kw':'M 337,122 L 343,120 L 344,126 L 338,128 Z',
-    'kz':'M 378,80 L 440,72 L 445,100 L 420,108 L 380,103 L 372,92 Z',
-    'la':'M 542,148 L 555,143 L 558,157 L 545,160 Z',
-    'lb':'M 312,112 L 318,110 L 319,117 L 313,118 Z',
-    'lk':'M 498,162 L 505,158 L 507,168 L 499,172 Z',
-    'lr':'M 225,165 L 235,162 L 237,172 L 227,175 L 222,170 Z',
-    'ly':'M 270,118 L 300,113 L 303,130 L 282,138 L 267,132 Z',
-    'ma':'M 218,112 L 242,108 L 245,123 L 225,130 L 215,125 Z',
-    'md':'M 300,88 L 308,85 L 310,93 L 302,96 Z',
-    'mg':'M 325,215 L 335,208 L 338,228 L 328,235 L 320,228 Z',
-    'ml':'M 228,145 L 262,138 L 265,153 L 245,160 L 225,157 Z',
-    'mm':'M 522,130 L 540,125 L 543,145 L 528,152 L 518,143 Z',
-    'mn':'M 490,72 L 555,65 L 560,85 L 530,92 L 490,88 Z',
-    'mr':'M 210,132 L 238,125 L 240,143 L 218,148 L 207,142 Z',
-    'mw':'M 308,205 L 315,200 L 318,215 L 310,220 Z',
-    'mx':'M 72,118 L 118,110 L 125,130 L 108,145 L 80,148 L 68,135 Z',
-    'my':'M 543,170 L 570,165 L 572,178 L 555,182 L 540,178 Z',
-    'mz':'M 305,210 L 320,205 L 323,225 L 310,232 L 300,225 Z',
-    'na':'M 270,220 L 290,215 L 293,235 L 278,240 L 267,233 Z',
-    'ne':'M 255,140 L 288,135 L 290,152 L 268,158 L 252,153 Z',
-    'ng':'M 260,152 L 285,147 L 288,165 L 268,172 L 257,165 Z',
-    'ni':'M 112,160 L 125,157 L 127,167 L 115,170 Z',
-    'nl':'M 248,72 L 258,68 L 262,78 L 250,82 Z',
-    'no':'M 245,42 L 275,32 L 285,55 L 265,65 L 242,58 Z',
-    'np':'M 490,120 L 515,115 L 518,127 L 493,132 Z',
-    'nz':'M 622,285 L 632,278 L 635,295 L 625,302 L 618,295 Z',
-    'om':'M 360,135 L 380,128 L 383,145 L 362,150 Z',
-    'pa':'M 128,165 L 140,162 L 142,170 L 130,173 Z',
-    'pe':'M 128,200 L 155,193 L 158,215 L 143,225 L 125,218 Z',
-    'pg':'M 595,195 L 620,188 L 623,205 L 600,210 Z',
-    'ph':'M 570,148 L 590,143 L 593,163 L 573,168 Z',
-    'pk':'M 428,115 L 468,108 L 472,132 L 450,140 L 425,133 Z',
-    'pl':'M 268,72 L 295,67 L 298,82 L 278,88 L 265,83 Z',
-    'pt':'M 215,100 L 228,97 L 230,110 L 218,113 Z',
-    'py':'M 165,232 L 180,228 L 183,242 L 168,247 L 162,240 Z',
-    'qa':'M 348,128 L 352,125 L 354,132 L 349,133 Z',
-    'ro':'M 285,85 L 305,80 L 308,95 L 290,100 L 282,95 Z',
-    'rs':'M 275,90 L 288,87 L 290,97 L 278,100 L 272,97 Z',
-    'ru':'M 295,42 L 570,28 L 578,68 L 560,75 L 440,80 L 350,78 L 310,70 L 292,55 Z',
-    'rw':'M 305,183 L 310,180 L 312,187 L 306,189 Z',
-    'sa':'M 325,120 L 365,115 L 368,140 L 348,150 L 322,143 Z',
-    'sd':'M 295,145 L 325,138 L 328,162 L 308,170 L 290,163 Z',
-    'se':'M 255,42 L 275,35 L 280,60 L 265,68 L 252,60 Z',
-    'si':'M 263,88 L 272,85 L 275,92 L 265,95 Z',
-    'sk':'M 275,82 L 288,79 L 290,87 L 278,90 L 272,87 Z',
-    'sl':'M 222,163 L 230,160 L 232,170 L 223,173 Z',
-    'sn':'M 208,148 L 223,143 L 225,155 L 210,158 Z',
-    'so':'M 325,155 L 348,148 L 350,170 L 330,178 L 320,170 Z',
-    'ss':'M 295,158 L 318,152 L 320,168 L 300,175 L 290,168 Z',
-    'sv':'M 112,158 L 120,155 L 122,162 L 113,165 Z',
-    'sy':'M 315,108 L 330,105 L 332,115 L 318,118 Z',
-    'td':'M 270,143 L 295,138 L 298,158 L 278,165 L 267,158 Z',
-    'tg':'M 258,155 L 263,152 L 265,165 L 259,168 Z',
-    'th':'M 530,148 L 548,143 L 550,165 L 535,172 L 527,163 Z',
-    'tj':'M 450,107 L 468,103 L 470,115 L 452,118 Z',
-    'tm':'M 390,100 L 425,95 L 428,110 L 405,115 L 388,110 Z',
-    'tn':'M 262,108 L 275,105 L 277,120 L 263,125 Z',
-    'tr':'M 295,100 L 345,93 L 348,110 L 318,118 L 292,113 Z',
-    'tz':'M 308,185 L 325,180 L 328,200 L 312,207 L 303,200 Z',
-    'ua':'M 285,72 L 318,65 L 322,82 L 300,90 L 282,85 Z',
-    'ug':'M 302,172 L 315,168 L 318,183 L 303,187 Z',
-    'us':'M 52,88 L 150,80 L 158,108 L 130,118 L 68,122 L 50,108 Z',
-    'uy':'M 168,255 L 180,250 L 183,263 L 170,268 L 163,262 Z',
-    'uz':'M 410,97 L 450,91 L 453,106 L 428,112 L 407,107 Z',
-    've':'M 148,165 L 170,160 L 173,175 L 155,182 L 143,175 Z',
-    'vn':'M 548,133 L 565,127 L 568,153 L 550,160 L 543,148 Z',
-    'ye':'M 330,138 L 368,132 L 370,148 L 345,155 L 327,148 Z',
-    'za':'M 270,232 L 305,225 L 308,248 L 288,255 L 265,248 Z',
-    'zm':'M 285,205 L 310,200 L 312,218 L 290,225 L 280,218 Z',
-    'zw':'M 290,218 L 310,213 L 313,228 L 293,233 L 285,228 Z'
-  };
+  try{
+    // Load TopoJSON world data from CDN
+    const [topoResp] = await Promise.all([
+      fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    ]);
+    const world = await topoResp.json();
 
-  let svg='<svg viewBox="0 0 680 360" style="width:100%;height:auto;display:block;border-radius:8px" xmlns="http://www.w3.org/2000/svg">';
-  svg+='<rect width="680" height="360" fill="#c8dff0" rx="8"/>';
+    // Load TopoJSON library
+    await new Promise((resolve,reject)=>{
+      if(window.topojson){resolve();return;}
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/topojson@3/dist/topojson.min.js';
+      s.onload=resolve;s.onerror=reject;
+      document.head.appendChild(s);
+    });
 
-  Object.entries(PATHS).forEach(([code,path])=>{
-    const visited=visitedCodes.has(code);
-    svg+='<path d="'+path+'" fill="'+(visited?'#2563eb':'#e8e8e8')+'" stroke="white" stroke-width="0.8" opacity="'+(visited?'1':'0.9')+'"/>';
-  });
+    const countries = topojson.feature(world, world.objects.countries);
+    const W=container.offsetWidth||320, H=Math.round(W*0.5);
 
-  svg+='</svg>';
-  return svg;
+    // Simple equirectangular projection
+    const project=([lon,lat])=>{
+      const x=(lon+180)*(W/360);
+      const y=(90-lat)*(H/180);
+      return [x,y];
+    };
+
+    const pathD=(geometry)=>{
+      const coords=geometry.type==='Polygon'?[geometry.coordinates]:geometry.coordinates;
+      return coords.map(poly=>
+        poly[0].map((pt,i)=>{
+          const [x,y]=project(pt);
+          return (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);
+        }).join(' ')+'Z'
+      ).join(' ');
+    };
+
+    let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;border-radius:8px" xmlns="http://www.w3.org/2000/svg">';
+    svg+='<rect width="'+W+'" height="'+H+'" fill="#c8dff0" rx="8"/>';
+
+    countries.features.forEach(f=>{
+      const id=String(f.id);
+      const visited=visitedIds.has(id);
+      const d=pathD(f.geometry);
+      svg+='<path d="'+d+'" fill="'+(visited?'#2563eb':'#d4d4d4')+'" stroke="white" stroke-width="0.5" opacity="'+(visited?'1':'0.85')+'"/>';
+    });
+
+    svg+='</svg>';
+    container.innerHTML=svg;
+  }catch(e){
+    console.error('Map error:',e);
+    container.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#999;font-size:12px">Mapa no disponible sin conexión</div>';
+  }
 }
+
 
 function openTripModal(){S.editingTrip=null;document.getElementById('trip-modal-title').textContent='Nuevo viaje';['trip-dest','trip-summary','trip-notes','trip-photo'].forEach(id=>document.getElementById(id).value='');document.getElementById('trip-start').value=today;document.getElementById('trip-end').value=today;document.getElementById('trip-type').value='leisure';document.getElementById('trip-status').value='planning';openModal('modal-trip');}
 function editTrip(id){
