@@ -1619,26 +1619,21 @@ async function renderWorldMapD3(visitedDests, containerId){
     const countries = topojson.feature(world, world.objects.countries);
 
     const W=container.offsetWidth||340;
-    // Use Miller projection aspect ratio (wider, less squished)
-    const H=Math.round(W*0.56);
+    const H=Math.round(W*0.52);
 
-    // Miller cylindrical projection - less distorted than equirectangular
+    // Natural Mercator-like projection, cropped to lat -55 to 75
+    const LAT_MIN=-56, LAT_MAX=75;
     const project=([lon,lat])=>{
       const x=(lon+180)*(W/360);
-      // Miller: y = (5/4)*ln(tan(π/4 + 2φ/5))
-      const latRad=lat*Math.PI/180;
-      const millerY=(5/4)*Math.log(Math.tan(Math.PI/4+(2*latRad/5)));
-      // Miller range is roughly -2.3 to 2.3 for lat -90 to 90
-      const maxMiller=2.303;
-      const y=H/2 - (millerY/(maxMiller*2))*H;
+      const latClamped=Math.max(LAT_MIN,Math.min(LAT_MAX,lat));
+      const y=(LAT_MAX-latClamped)/(LAT_MAX-LAT_MIN)*H;
       return [x,y];
     };
 
     const pathD=(geometry)=>{
       const coords=geometry.type==='Polygon'?[geometry.coordinates]:geometry.coordinates;
       return coords.map(poly=>{
-        // Filter out Antarctica and clip extreme latitudes
-        const pts=poly[0].filter(pt=>pt[1]>-60);
+        const pts=poly[0].filter(pt=>pt[1]>LAT_MIN&&pt[1]<LAT_MAX);
         if(pts.length<3)return'';
         return pts.map((pt,i)=>{
           const [x,y]=project(pt);
@@ -1648,29 +1643,17 @@ async function renderWorldMapD3(visitedDests, containerId){
     };
 
     // Clip path to hide Antarctica and bottom overflow
-    let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;border-radius:8px" xmlns="http://www.w3.org/2000/svg">';
+    let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">';
     svg+='<defs><clipPath id="map-clip"><rect x="0" y="0" width="'+W+'" height="'+H+'"/></clipPath></defs>';
-    // No background - transparent ocean
-    svg+='<rect width="'+W+'" height="'+H+'" fill="transparent"/>';
-
-    // Draw graticules (light grid lines)
-    svg+='<g stroke="#e8e8e8" stroke-width="0.3" fill="none">';
-    // Horizontal lines every 30°
-    for(let lat=-60;lat<=80;lat+=30){
-      const y=project([0,lat])[1];
-      svg+='<line x1="0" y1="'+y.toFixed(1)+'" x2="'+W+'" y2="'+y.toFixed(1)+'"/>';
-    }
-    svg+='</g>';
 
     svg+='<g clip-path="url(#map-clip)">';
     countries.features.forEach(f=>{
       const id=String(f.id);
-      // Skip Antarctica (id 10)
-      if(id==='10')return;
+      if(id==='10')return; // skip Antarctica
       const visited=visitedIds.has(id);
       const d=pathD(f.geometry);
       if(!d.trim())return;
-      svg+='<path d="'+d+'" fill="'+(visited?'#2563eb':'#e0e0e0')+'" stroke="white" stroke-width="0.4" opacity="'+(visited?'1':'0.9')+'"/>';
+      svg+='<path d="'+d+'" fill="'+(visited?'#2563eb':'#d4d4d4')+'" stroke="white" stroke-width="0.5"/>';
     });
     svg+='</g>';
     svg+='</svg>';
