@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1.0"/>
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Life+OS%22,%22short_name%22:%22Life+OS%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%23ffffff%22,%22theme_color%22:%22%23ffffff%22}">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1.0"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="Life OS"/>
@@ -221,6 +223,7 @@
       </select>
     </div>
     <div class="field"><label>Fecha límite</label><input type="date" id="et-due"/></div>
+    <div class="field"><label>Hora de aviso</label><input type="datetime-local" id="et-reminder"/></div>
     <button class="btn btn-primary" onclick="saveEditTask()">Guardar cambios</button>
   </div>
 </div>
@@ -288,6 +291,7 @@
     <div class="field"><label>Título</label><input type="text" id="task-title" placeholder="¿Qué necesitas hacer?"/></div>
     <div class="field"><label>Descripción</label><textarea id="task-desc" placeholder="Detalles opcionales..."></textarea></div>
     <div class="field"><label>Fecha límite</label><input type="date" id="task-due"/></div>
+    <div class="field"><label>⏰ Hora de aviso</label><input type="datetime-local" id="task-reminder"/></div>
     <div class="field"><label>Prioridad</label>
       <select id="task-priority"><option value="Baja">Baja</option><option value="Media" selected>Media</option><option value="Alta">Alta</option></select>
     </div>
@@ -1891,11 +1895,15 @@ async function saveTask(){
   const title=document.getElementById('task-title').value;if(!title)return;
   const description=document.getElementById('task-desc').value;
   const due_date=document.getElementById('task-due').value||null;
-  const priority=document.getElementById('task-priority').value;
-  await db.insert('tasks',{title,description,due_date,priority,completed:false});
-  closeModal('modal-task');document.getElementById('task-title').value='';document.getElementById('task-desc').value='';
-  if(S.page==='tasks')renderTasks();else if(S.page==='dashboard')renderDashboard();
+  const priority=document.getElementById('task-priority').value||'Media';
+  const reminder=document.getElementById('task-reminder')?.value||null;
+  await db.insert('tasks',{title,description,due_date,priority,completed:false,reminder_time:reminder});
+  if(reminder)scheduleNotification(title,reminder);
+  closeModal('modal-task');
+  ['task-title','task-desc','task-due','task-reminder'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderTasks();if(S.currentPage==='dashboard')renderDashboard();
 }
+
 async function saveHabit(){
   const name=document.getElementById('habit-name').value;if(!name)return;
   const icon=document.getElementById('habit-icon').value||'✨';
@@ -2057,17 +2065,21 @@ function openEditTask(t){
   document.getElementById('et-desc').value=t.description||'';
   document.getElementById('et-priority').value=t.priority||'Media';
   document.getElementById('et-due').value=t.due_date||'';
+  document.getElementById('et-reminder').value=t.reminder_time||'';
   openModal('modal-edit-task');
 }
 async function saveEditTask(){
   if(!S.editingTask)return;
+  const reminder=document.getElementById('et-reminder').value||null;
   const payload={
     title:document.getElementById('et-title').value,
     description:document.getElementById('et-desc').value,
     priority:document.getElementById('et-priority').value,
-    due_date:document.getElementById('et-due').value||null
+    due_date:document.getElementById('et-due').value||null,
+    reminder_time:reminder
   };
   await db.update('tasks',S.editingTask.id,payload);
+  if(reminder)scheduleNotification(document.getElementById('et-title').value,reminder);
   closeModal('modal-edit-task');renderTasks();
 }
 
@@ -2079,6 +2091,48 @@ async function ensureSettingsColumns(){
   }catch(e){}
 }
 ensureSettingsColumns();
+// ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
+async function requestNotificationPermission(){
+  if(!('Notification' in window))return false;
+  if(Notification.permission==='granted')return true;
+  if(Notification.permission!=='denied'){
+    const permission=await Notification.requestPermission();
+    return permission==='granted';
+  }
+  return false;
+}
+
+function scheduleNotification(title, datetimeStr){
+  if(!datetimeStr)return;
+  const targetTime=new Date(datetimeStr).getTime();
+  const now=Date.now();
+  const delay=targetTime-now;
+  if(delay<=0)return; // already past
+  if(delay>7*24*60*60*1000)return; // too far ahead (>7 days)
+  setTimeout(async()=>{
+    const granted=await requestNotificationPermission();
+    if(!granted)return;
+    new Notification('⏰ Life OS - Recordatorio',{
+      body:title,
+      icon:'/icon-192.png',
+      badge:'/icon-192.png',
+      tag:'task-'+title.replace(/\s/g,'-'),
+      requireInteraction:true
+    });
+  },delay);
+}
+
+async function loadAndScheduleReminders(){
+  const tasks=await db.get('tasks',{filter:{completed:false}});
+  const now=Date.now();
+  tasks.forEach(t=>{
+    if(t.reminder_time){
+      const target=new Date(t.reminder_time).getTime();
+      if(target>now)scheduleNotification(t.title,t.reminder_time);
+    }
+  });
+}
+
 async function initApp(){
   try{
     await renderDashboard();
@@ -2093,6 +2147,11 @@ async function initApp(){
       await checkAndAddSalary(s[0].monthly_salary,s[0].payday);
     }
   }catch(e){console.error('salary check error:',e);}
+  // Request notification permission and schedule reminders
+  try{
+    await requestNotificationPermission();
+    await loadAndScheduleReminders();
+  }catch(e){console.error('notification error:',e);}
 }
 initApp();
 </script>
