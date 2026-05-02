@@ -350,6 +350,7 @@
       <div class="field"><label>Carbos (g)</label><input type="number" id="me-car" inputmode="numeric"/></div>
       <div class="field"><label>Grasa (g)</label><input type="number" id="me-fat" inputmode="numeric"/></div>
     </div>
+    <div class="field"><label>Fecha</label><input type="date" id="me-date"/></div>
     <button class="btn btn-primary" onclick="saveMacroEdit()">Guardar</button>
   </div>
 </div>
@@ -459,13 +460,26 @@ let S={
   page:'dashboard',tasks:[],transactions:[],habits:[],habitLogs:[],
   meals:[],exercises:[],trips:[],settings:null,
   editingTrip:null,editingMacroMeal:null,
-  financeTab:'resumen',subFinanceTab:'todos',nutritionTab:'hoy',taskFilter:'pending',nutritionDate:today,nutCalYear:new Date().getFullYear(),nutCalMonth:new Date().getMonth(),
+  financeTab:'resumen',subFinanceTab:'todos',financePeriodOffset:0,nutritionTab:'hoy',taskFilter:'pending',nutritionDate:today,nutCalYear:new Date().getFullYear(),nutCalMonth:new Date().getMonth(),
   calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),
   undoStack:null,undoTimer:null
 };
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 const fmt=n=>(n||0).toLocaleString('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2});
+function getBillingPeriodWithOffset(d=1, offset=0){
+  const now=new Date();const pad=n=>String(n).padStart(2,'0');
+  // Adjust month by offset
+  const ref=new Date(now.getFullYear(), now.getMonth()+offset, 1);
+  const refDay=now.getDate();
+  let s,e;
+  const startMonth=offset===0&&refDay>=d ? ref : new Date(ref.getFullYear(), ref.getMonth()-1, 1);
+  s=new Date(startMonth.getFullYear(), startMonth.getMonth(), d);
+  e=new Date(s.getFullYear(), s.getMonth()+1, d-1);
+  const f=dt=>`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+  const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return{start:f(s),end:f(e),label:`${s.getDate()} ${MESES[s.getMonth()]} — ${e.getDate()} ${MESES[e.getMonth()]} ${e.getFullYear()}`};
+}
 function getBillingPeriod(d=1){
   const now=new Date();const day=now.getDate();const pad=n=>String(n).padStart(2,'0');
   let s,e;
@@ -661,9 +675,13 @@ async function toggleTaskDash(id,btn){
 async function renderFinances(){
   const el=document.getElementById('view-finances');
   el.innerHTML='<div class="spinner"></div>';
-  if(!S.transactions.length)S.transactions=await db.get('transactions',{order:'created_at.desc',limit:500});
+  // Always reload transactions when navigating periods
+  if(!S.transactions.length||S.financePeriodOffset!==0){
+    S.transactions=await db.get('transactions',{order:'created_at.desc',limit:500});
+  }
   if(!S.settings){const s=await db.get('user_settings',{order:'created_at.desc',limit:1});S.settings=s[0]||{billing_day:1};}
-  const period=getBillingPeriod(S.settings?.billing_day||1);
+  const offset=S.financePeriodOffset||0;
+  const period=getBillingPeriodWithOffset(S.settings?.billing_day||1, offset);
   const ptxs=S.transactions.filter(t=>t.date>=period.start&&t.date<=period.end);
   const income=ptxs.filter(t=>t.type==='income').reduce((a,t)=>a+(t.amount||0),0);
   const savings=ptxs.filter(t=>t.type==='expense'&&t.category==='Ahorro / Inversión').reduce((a,t)=>a+(t.amount||0),0);
@@ -688,7 +706,13 @@ async function renderFinances(){
   // ── Header ──────────────────────────────────────────────────────────────
   const hdr=document.createElement('div');
   hdr.innerHTML=`<div class="page-header">
-    <div><h1 class="page-title">Finanzas</h1><p class="page-sub">Ciclo ${period.label}</p></div>
+    <div><h1 class="page-title">Finanzas</h1>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <button onclick="S.financePeriodOffset=(S.financePeriodOffset||0)-1;S.transactions=[];renderFinances()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2);padding:0 4px">‹</button>
+        <p class="page-sub" style="margin:0">${period.label}</p>
+        <button onclick="S.financePeriodOffset=Math.min(0,(S.financePeriodOffset||0)+1);S.transactions=[];renderFinances()" style="background:none;border:none;font-size:18px;cursor:pointer;color:${(S.financePeriodOffset||0)>=0?'var(--bg3)':'var(--text2)'};padding:0 4px">›</button>
+      </div>
+    </div>
     <div style="display:flex;gap:8px">
       <button onclick="openModal('modal-income')" style="padding:7px 12px;background:var(--green-bg);border:none;border-radius:10px;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Ingreso</button>
       <button onclick="openModal('modal-expense')" style="padding:7px 12px;background:var(--red-bg);border:none;border-radius:10px;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Gasto</button>
@@ -877,6 +901,18 @@ async function renderFinances(){
 }
 
 
+function openEditTxById(id){const tx=S.transactions&&S.transactions.find(t=>t.id===id);if(tx)openEditTx(tx);}
+function openEditTx(tx){
+  S.editingTx=tx;
+  document.getElementById('etx-amount').value=tx.amount||'';
+  document.getElementById('etx-desc').value=tx.description||'';
+  document.getElementById('etx-date').value=tx.date||today;
+  const recurring=document.getElementById('etx-recurring');
+  if(recurring)recurring.classList.toggle('on',!!tx.is_recurring);
+  const sel=document.getElementById('etx-cat');
+  if(sel){sel.innerHTML='';const cats=tx.type==='income'?getIncomeCats():getExpenseCats();cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;if(c===tx.category)o.selected=true;sel.appendChild(o);});}
+  openModal('modal-edit-tx');
+}
 async function saveEditTx(){
   if(!S.editingTx)return;
   const payload={amount:parseFloat(document.getElementById('etx-amount').value)||S.editingTx.amount,description:document.getElementById('etx-desc').value,category:document.getElementById('etx-cat').value,date:document.getElementById('etx-date').value||today,is_recurring:document.getElementById('etx-recurring').classList.contains('on')};
@@ -1009,7 +1045,7 @@ async function renderNutrition(){
         const editBtn=document.createElement('button');
         editBtn.style.cssText='background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);margin-right:2px';
         editBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-        editBtn.onclick=()=>openMacroEdit(meal.id,meal.name,meal.calories,meal.protein,meal.carbs,meal.fat,meal.amount_g);
+        editBtn.onclick=()=>openMacroEdit(meal.id,meal.name,meal.calories,meal.protein,meal.carbs,meal.fat,meal.amount_g,meal.date);
         const delBtn=document.createElement('button');
         delBtn.className='row-del';
         delBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
@@ -1139,7 +1175,7 @@ async function consultaIA(){
 }
 
 
-function openMacroEdit(id,name,cal,pro,car,fat,grams){
+function openMacroEdit(id,name,cal,pro,car,fat,grams,date){
   S.editingMacroMeal={id,name};
   document.getElementById('macro-edit-name').textContent=name;
   document.getElementById('me-cal').value=cal;
@@ -1147,12 +1183,14 @@ function openMacroEdit(id,name,cal,pro,car,fat,grams){
   document.getElementById('me-car').value=car;
   document.getElementById('me-fat').value=fat;
   document.getElementById('me-grams').value=grams||'';
+  document.getElementById('me-date').value=date||today;
   openModal('modal-macro-edit');
 }
 async function saveMacroEdit(){
   const{id}=S.editingMacroMeal;
   const grams=parseFloat(document.getElementById('me-grams').value)||null;
-  const payload={calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0};
+  const mealDate=document.getElementById('me-date').value||today;
+  const payload={calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0,date:mealDate};
   if(grams)payload.amount_g=grams;
   await db.update('meals',id,payload);
   closeModal('modal-macro-edit');renderNutrition();
@@ -1198,7 +1236,7 @@ async function renderExercise(){
     card.className='card';card.style.marginBottom='10px';
 
     const mgHtml=ex.muscle_groups?.length
-      ?'<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'+ex.muscle_groups.map(mg=>'<span style="font-size:10px;background:var(--orange-bg);color:var(--orange);padding:2px 8px;border-radius:20px">'+mg+'</span>').join('')+'</div>'
+      ?'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;overflow:visible">'+ex.muscle_groups.map(mg=>'<span style="font-size:10px;background:var(--orange-bg);color:var(--orange);padding:3px 8px;border-radius:20px;white-space:nowrap">'+mg+'</span>').join('')+'</div>'
       :'';
 
     card.innerHTML=`<div style="display:flex;align-items:start;gap:12px">
