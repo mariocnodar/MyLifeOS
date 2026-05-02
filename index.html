@@ -936,7 +936,7 @@ async function delTx(id,name){
 function getExEmoji(sport){
   if(!sport)return'⚡';
   const s=sport.toLowerCase();
-  if(s.includes('padel')||s.includes('pádel'))return'🏓';
+  if(s.includes('padel')||s.includes('pádel'))return'🎾';
   if(s.includes('tenis'))return'🎾';
   if(s.includes('futbol')||s.includes('fútbol')||s.includes('soccer'))return'⚽';
   if(s.includes('basket')||s.includes('baloncesto'))return'🏀';
@@ -1232,7 +1232,7 @@ async function delMeal(id,name){
 async function renderExercise(){
   const el=document.getElementById('view-exercise');el.innerHTML='<div class="spinner"></div>';
   const exs=await db.get('exercises',{order:'date.desc',limit:100});S.exercises=exs;
-  const sEmoji={gym:'🏋️',running:'🏃',walking:'🚶',cycling:'🚴',swimming:'🏊',yoga:'🧘',other:'⚡',padel:'🏓',tennis:'🎾',futbol:'⚽',basketball:'🏀',football:'🏈',golf:'⛳',ski:'⛷️',surf:'🏄',boxing:'🥊',climbing:'🧗',hiit:'🔥',pilates:'🤸',crossfit:'💪'};
+  const sEmoji={gym:'🏋️',running:'🏃',walking:'🚶',cycling:'🚴',swimming:'🏊',yoga:'🧘',other:'⚡',padel:'🎾',tennis:'🎾',futbol:'⚽',basketball:'🏀',football:'🏈',golf:'⛳',ski:'⛷️',surf:'🏄',boxing:'🥊',climbing:'🧗',hiit:'🔥',pilates:'🤸',crossfit:'💪'};
   const sLabel={gym:'Gimnasio',running:'Correr',walking:'Andar',cycling:'Ciclismo',swimming:'Natación',yoga:'Yoga',other:'Otro',padel:'Pádel',tennis:'Tenis',futbol:'Fútbol',basketball:'Baloncesto'};
   const weekDays=getWeekDays();const weekEx=exs.filter(e=>weekDays.includes(e.date));
 
@@ -1354,7 +1354,7 @@ async function renderHabits(){
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
     html += '<div style="display:flex;align-items:center;gap:8px">';
     html += '<span style="font-size:20px">'+(h.icon||'✨')+'</span>';
-    html += '<span style="font-size:15px;font-weight:600">'+h.name+'</span>';
+    html += '<span style="font-size:15px;font-weight:600">'+h.name.replace(/[^\u0000-\u007E\u00A0-\u024F ]/g,'').trim()+'</span>';
     html += '</div>';
     html += '<div style="display:flex;align-items:center;gap:10px">';
     html += '<span style="font-size:13px;font-weight:700;color:var(--green)">'+streak+'🔥</span>';
@@ -2134,12 +2134,14 @@ async function ensureSettingsColumns(){
 ensureSettingsColumns();
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
 async function requestNotificationPermission(){
-  if(!('Notification' in window))return false;
+  if(!('Notification' in window)){console.log('Notifications not supported');return false;}
   if(Notification.permission==='granted')return true;
   if(Notification.permission!=='denied'){
     const permission=await Notification.requestPermission();
+    console.log('Notification permission:',permission);
     return permission==='granted';
   }
+  console.log('Notifications denied');
   return false;
 }
 
@@ -2148,19 +2150,23 @@ function scheduleNotification(title, datetimeStr){
   const targetTime=new Date(datetimeStr).getTime();
   const now=Date.now();
   const delay=targetTime-now;
-  if(delay<=0)return; // already past
-  if(delay>7*24*60*60*1000)return; // too far ahead (>7 days)
+  if(delay>7*24*60*60*1000)return;
+  const fireDelay=delay<=0?0:delay;
+  console.log('Scheduling notification for:',title,'in',Math.round(fireDelay/1000),'seconds');
   setTimeout(async()=>{
     const granted=await requestNotificationPermission();
-    if(!granted)return;
-    new Notification('⏰ Life OS - Recordatorio',{
-      body:title,
-      icon:'/icon-192.png',
-      badge:'/icon-192.png',
-      tag:'task-'+title.replace(/\s/g,'-'),
-      requireInteraction:true
-    });
-  },delay);
+    if(!granted){console.log('No notification permission');return;}
+    try{
+      new Notification('⏰ Life OS',{
+        body:title,
+        icon:'/icon-192.png',
+        tag:'task-reminder',
+        requireInteraction:true,
+        silent:false
+      });
+      console.log('Notification fired for:',title);
+    }catch(e){console.error('Notification error:',e);}
+  },fireDelay);
 }
 
 async function loadAndScheduleReminders(){
