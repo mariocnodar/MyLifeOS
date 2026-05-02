@@ -1605,13 +1605,7 @@ async function renderWorldMapD3(visitedDests, containerId){
   });
 
   try{
-    // Load TopoJSON world data from CDN
-    const [topoResp] = await Promise.all([
-      fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-    ]);
-    const world = await topoResp.json();
-
-    // Load TopoJSON library
+    // Load TopoJSON library first
     await new Promise((resolve,reject)=>{
       if(window.topojson){resolve();return;}
       const s=document.createElement('script');
@@ -1620,41 +1614,70 @@ async function renderWorldMapD3(visitedDests, containerId){
       document.head.appendChild(s);
     });
 
+    const topoResp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    const world = await topoResp.json();
     const countries = topojson.feature(world, world.objects.countries);
-    const W=container.offsetWidth||320, H=Math.round(W*0.5);
 
-    // Simple equirectangular projection
+    const W=container.offsetWidth||340;
+    // Use Miller projection aspect ratio (wider, less squished)
+    const H=Math.round(W*0.56);
+
+    // Miller cylindrical projection - less distorted than equirectangular
     const project=([lon,lat])=>{
       const x=(lon+180)*(W/360);
-      const y=(90-lat)*(H/180);
+      // Miller: y = (5/4)*ln(tan(π/4 + 2φ/5))
+      const latRad=lat*Math.PI/180;
+      const millerY=(5/4)*Math.log(Math.tan(Math.PI/4+(2*latRad/5)));
+      // Miller range is roughly -2.3 to 2.3 for lat -90 to 90
+      const maxMiller=2.303;
+      const y=H/2 - (millerY/(maxMiller*2))*H;
       return [x,y];
     };
 
     const pathD=(geometry)=>{
       const coords=geometry.type==='Polygon'?[geometry.coordinates]:geometry.coordinates;
-      return coords.map(poly=>
-        poly[0].map((pt,i)=>{
+      return coords.map(poly=>{
+        // Filter out Antarctica and clip extreme latitudes
+        const pts=poly[0].filter(pt=>pt[1]>-60);
+        if(pts.length<3)return'';
+        return pts.map((pt,i)=>{
           const [x,y]=project(pt);
           return (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);
-        }).join(' ')+'Z'
-      ).join(' ');
+        }).join(' ')+'Z';
+      }).join(' ');
     };
 
+    // Clip path to hide Antarctica and bottom overflow
     let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;border-radius:8px" xmlns="http://www.w3.org/2000/svg">';
-    svg+='<rect width="'+W+'" height="'+H+'" fill="#c8dff0" rx="8"/>';
+    svg+='<defs><clipPath id="map-clip"><rect x="0" y="0" width="'+W+'" height="'+H+'"/></clipPath></defs>';
+    // No background - transparent ocean
+    svg+='<rect width="'+W+'" height="'+H+'" fill="transparent"/>';
 
+    // Draw graticules (light grid lines)
+    svg+='<g stroke="#e8e8e8" stroke-width="0.3" fill="none">';
+    // Horizontal lines every 30°
+    for(let lat=-60;lat<=80;lat+=30){
+      const y=project([0,lat])[1];
+      svg+='<line x1="0" y1="'+y.toFixed(1)+'" x2="'+W+'" y2="'+y.toFixed(1)+'"/>';
+    }
+    svg+='</g>';
+
+    svg+='<g clip-path="url(#map-clip)">';
     countries.features.forEach(f=>{
       const id=String(f.id);
+      // Skip Antarctica (id 10)
+      if(id==='10')return;
       const visited=visitedIds.has(id);
       const d=pathD(f.geometry);
-      svg+='<path d="'+d+'" fill="'+(visited?'#2563eb':'#d4d4d4')+'" stroke="white" stroke-width="0.5" opacity="'+(visited?'1':'0.85')+'"/>';
+      if(!d.trim())return;
+      svg+='<path d="'+d+'" fill="'+(visited?'#2563eb':'#e0e0e0')+'" stroke="white" stroke-width="0.4" opacity="'+(visited?'1':'0.9')+'"/>';
     });
-
+    svg+='</g>';
     svg+='</svg>';
     container.innerHTML=svg;
   }catch(e){
     console.error('Map error:',e);
-    container.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#999;font-size:12px">Mapa no disponible sin conexión</div>';
+    container.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#999;font-size:12px">Mapa no disponible</div>';
   }
 }
 
