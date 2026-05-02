@@ -342,7 +342,7 @@
 <div id="modal-macro-edit" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-macro-edit')">
   <div class="modal">
     <div class="modal-title">Editar macros <button class="modal-close" onclick="closeModal('modal-macro-edit')">×</button></div>
-    <p id="macro-edit-name" style="font-size:14px;font-weight:500;margin-bottom:14px;color:var(--text2)"></p>
+    <div class="field"><label>Nombre</label><input type="text" id="me-name"/></div>
     <div class="grid2" style="gap:10px">
       <div class="field"><label>Calorías</label><input type="number" id="me-cal" inputmode="numeric"/></div>
       <div class="field"><label>Cantidad (g/ml)</label><input type="number" id="me-grams" inputmode="numeric" placeholder="ej: 150"/></div>
@@ -403,7 +403,7 @@
     </button>
     <button class="nav-item" id="nav-exercise" onclick="switchPage('exercise')">
       <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6.5 6.5h11"/><path d="M6.5 17.5h11"/><path d="M3 9.5h3v5H3z"/><path d="M18 9.5h3v5h-3z"/><line x1="6" y1="12" x2="18" y2="12"/></svg></div>
-      <span class="nav-label">Ejercicio</span>
+      <span class="nav-label">Deporte</span>
     </button>
     <button class="nav-item" id="nav-more" onclick="switchPage('trips')">
       <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div>
@@ -1177,7 +1177,7 @@ async function consultaIA(){
 
 function openMacroEdit(id,name,cal,pro,car,fat,grams,date){
   S.editingMacroMeal={id,name};
-  document.getElementById('macro-edit-name').textContent=name;
+  document.getElementById('me-name').value=name||'';
   document.getElementById('me-cal').value=cal;
   document.getElementById('me-pro').value=pro;
   document.getElementById('me-car').value=car;
@@ -1190,7 +1190,8 @@ async function saveMacroEdit(){
   const{id}=S.editingMacroMeal;
   const grams=parseFloat(document.getElementById('me-grams').value)||null;
   const mealDate=document.getElementById('me-date').value||today;
-  const payload={calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0,date:mealDate};
+  const mealName=document.getElementById('me-name').value;
+  const payload={name:mealName||S.editingMacroMeal.name,calories:parseInt(document.getElementById('me-cal').value)||0,protein:parseInt(document.getElementById('me-pro').value)||0,carbs:parseInt(document.getElementById('me-car').value)||0,fat:parseInt(document.getElementById('me-fat').value)||0,date:mealDate};
   if(grams)payload.amount_g=grams;
   await db.update('meals',id,payload);
   closeModal('modal-macro-edit');renderNutrition();
@@ -1212,7 +1213,7 @@ async function renderExercise(){
 
   el.innerHTML=`
     <div class="page-header">
-      <div><h1 class="page-title">Ejercicio</h1></div>
+      <div><h1 class="page-title">Deporte</h1></div>
       <button onclick="openModal('modal-exercise')" style="padding:7px 12px;background:var(--orange-bg);border:none;border-radius:10px;color:var(--orange);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans'">+ Registrar</button>
     </div>
     <div class="card" style="margin-bottom:10px">
