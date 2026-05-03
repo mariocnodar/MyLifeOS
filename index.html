@@ -1635,10 +1635,22 @@ async function renderWorldMapD3(visitedDests, containerId){
       return coords.map(poly=>{
         const pts=poly[0].filter(pt=>pt[1]>LAT_MIN&&pt[1]<LAT_MAX);
         if(pts.length<3)return'';
-        return pts.map((pt,i)=>{
-          const [x,y]=project(pt);
-          return (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);
-        }).join(' ')+'Z';
+        // Split path at antimeridian crossings to avoid long horizontal lines
+        const segments=[];let seg=[];
+        for(let i=0;i<pts.length;i++){
+          if(i>0){
+            const dlon=Math.abs(pts[i][0]-pts[i-1][0]);
+            if(dlon>180){if(seg.length>1)segments.push(seg);seg=[];}
+          }
+          seg.push(pts[i]);
+        }
+        if(seg.length>1)segments.push(seg);
+        return segments.map(s=>
+          s.map((pt,i)=>{
+            const [x,y]=project(pt);
+            return (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);
+          }).join(' ')+'Z'
+        ).join(' ');
       }).join(' ');
     };
 
