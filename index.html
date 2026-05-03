@@ -322,7 +322,17 @@
     <div class="field"><label>Estado</label>
       <select id="trip-status"><option value="planning">Planificando</option><option value="upcoming">Próximo</option><option value="ongoing">En curso</option><option value="completed">Completado</option></select>
     </div>
-    <div class="field"><label>URL foto de portada</label><input type="text" id="trip-photo" placeholder="https://...jpg"/></div>
+    <div class="field"><label>Foto del viaje</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="trip-photo" placeholder="URL de imagen..." style="flex:1"/>
+        <button type="button" onclick="document.getElementById('trip-photo-file').click()" style="padding:8px 12px;background:var(--blue-bg);border:none;border-radius:10px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">📷 Subir</button>
+      </div>
+      <input type="file" id="trip-photo-file" accept="image/*" style="display:none" onchange="uploadTripPhoto(this)"/>
+      <div id="trip-photo-preview" style="margin-top:8px;display:none">
+        <img id="trip-photo-preview-img" style="width:100%;height:120px;object-fit:cover;border-radius:10px"/>
+      </div>
+      <div id="trip-photo-uploading" style="display:none;font-size:12px;color:var(--text3);margin-top:4px">Subiendo foto...</div>
+    </div>
     <div class="field"><label>Notas</label><textarea id="trip-notes" placeholder="Hoteles, actividades..."></textarea></div>
     <button class="btn btn-primary" onclick="saveTrip()">Guardar viaje</button>
   </div>
@@ -1677,6 +1687,46 @@ async function renderWorldMapD3(visitedDests, containerId){
 }
 
 
+async function uploadTripPhoto(input){
+  const file=input.files[0];
+  if(!file)return;
+  const preview=document.getElementById('trip-photo-preview');
+  const previewImg=document.getElementById('trip-photo-preview-img');
+  const uploading=document.getElementById('trip-photo-uploading');
+  const photoInput=document.getElementById('trip-photo');
+
+  // Show preview immediately
+  const reader=new FileReader();
+  reader.onload=e=>{previewImg.src=e.target.result;preview.style.display='block';};
+  reader.readAsDataURL(file);
+
+  uploading.style.display='block';
+  try{
+    // Upload to Supabase Storage
+    const ext=file.name.split('.').pop();
+    const filename=Date.now()+'.'+ext;
+    const uploadResp=await fetch(SUPABASE_URL+'/storage/v1/object/trip-photos/'+filename,{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':'Bearer '+SUPABASE_KEY,
+        'Content-Type':file.type,
+        'x-upsert':'true'
+      },
+      body:file
+    });
+    if(!uploadResp.ok){const err=await uploadResp.json();throw new Error(err.message||'Upload failed');}
+    // Get public URL
+    const publicUrl=SUPABASE_URL+'/storage/v1/object/public/trip-photos/'+filename;
+    photoInput.value=publicUrl;
+    uploading.style.display='none';
+    console.log('Photo uploaded:',publicUrl);
+  }catch(e){
+    console.error('Upload error:',e);
+    uploading.textContent='Error al subir: '+e.message;
+    uploading.style.color='var(--red)';
+  }
+}
 function openTripModal(){S.editingTrip=null;document.getElementById('trip-modal-title').textContent='Nuevo viaje';['trip-dest','trip-summary','trip-notes','trip-photo'].forEach(id=>document.getElementById(id).value='');document.getElementById('trip-start').value=today;document.getElementById('trip-end').value=today;document.getElementById('trip-type').value='leisure';document.getElementById('trip-status').value='planning';openModal('modal-trip');}
 function editTrip(id){
   const t=S.trips.find(t=>t.id===id);if(!t)return;S.editingTrip=t;
