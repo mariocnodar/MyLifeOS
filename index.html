@@ -31,8 +31,9 @@
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}
     body{padding-bottom:calc(72px + env(safe-area-inset-bottom));overscroll-behavior:none;-webkit-overflow-scrolling:touch}
-    .app{overscroll-behavior:none}
-    html{overscroll-behavior:none}
+    .app{overscroll-behavior:none;-webkit-overflow-scrolling:touch}
+    html{overscroll-behavior:none;height:100%}
+    body{height:100%;overflow-y:scroll;-webkit-overflow-scrolling:touch;overscroll-behavior:none}
     .app{max-width:430px;margin:0 auto;padding:0 16px}
     .page-header{padding:calc(60px + env(safe-area-inset-top)) 0 20px;display:flex;justify-content:space-between;align-items:flex-end}
     .page-title{font-size:28px;font-weight:700;letter-spacing:-0.3px}
@@ -48,7 +49,7 @@
     .tab-btn{padding:10px 14px;border:none;background:none;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;margin-bottom:-1px}
     .tab-btn.active{color:var(--text);border-bottom-color:var(--text);font-weight:600}
     /* NAV — 6 items, no + */
-    .bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--bg2);border-top:0.5px solid var(--border)}
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--bg2);border-top:0.5px solid var(--border);transform:translateZ(0);-webkit-transform:translateZ(0)}
     .nav-inner{display:flex;align-items:center;justify-content:space-around;max-width:430px;margin:0 auto;padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
     .nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 6px;border:none;background:none;color:var(--text3);cursor:pointer;border-radius:10px;transition:all .2s;font-family:'DM Sans',sans-serif;min-width:0;flex:1}
     .nav-item.active{color:var(--text)}
