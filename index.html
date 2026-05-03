@@ -1460,7 +1460,6 @@ async function renderTrips(){
   el.innerHTML='<div class="spinner"></div>';
   const trips=await db.get('trips',{order:'start_date.desc',limit:50});
   S.trips=trips;
-  console.log('trips loaded:', trips.map(t=>({dest:t.destination,country:t.country_name,status:t.status})));
 
   // Build header
   el.innerHTML='';
@@ -1612,7 +1611,6 @@ async function renderWorldMapD3(visitedDests, containerId){
   };
 
   const visitedIds=new Set();
-  console.log('visitedDests:', visitedDests);
   visitedDests.forEach(dest=>{
     const d=dest.toLowerCase().trim();
     if(COUNTRY_MAP[d])visitedIds.add(COUNTRY_MAP[d]);
@@ -1620,7 +1618,6 @@ async function renderWorldMapD3(visitedDests, containerId){
       if(d.includes(key)||key.includes(d))visitedIds.add(id);
     });
   });
-  console.log('visitedIds:', Array.from(visitedIds));
 
   try{
     // Load TopoJSON library first
@@ -1755,6 +1752,8 @@ function editTrip(id){
   document.getElementById('trip-status').value=t.status||'planning';
   document.getElementById('trip-photo').value=t.photo_url||'';
   document.getElementById('trip-notes').value=t.notes||'';
+  const countryField=document.getElementById('trip-country');
+  if(countryField)countryField.value=t.country_name||'';
   openModal('modal-trip');
 }
 
@@ -2009,7 +2008,8 @@ async function saveTrip(){
   const end_date=document.getElementById('trip-end').value;
   if(!destination||!start_date||!end_date)return;
   const photo_url=document.getElementById('trip-photo').value||null;
-  const payload={destination,summary:document.getElementById('trip-summary').value,start_date,end_date,trip_type:document.getElementById('trip-type').value,status:document.getElementById('trip-status').value,notes:document.getElementById('trip-notes').value,photo_url};
+  const country_name=document.getElementById('trip-country')?.value||null;
+  const payload={destination,summary:document.getElementById('trip-summary').value,start_date,end_date,trip_type:document.getElementById('trip-type').value,status:document.getElementById('trip-status').value,notes:document.getElementById('trip-notes').value,photo_url,country_name};
   if(S.editingTrip)await db.update('trips',S.editingTrip.id,payload);
   else await db.insert('trips',payload);
   closeModal('modal-trip');renderTrips();
