@@ -1460,6 +1460,7 @@ async function renderTrips(){
   el.innerHTML='<div class="spinner"></div>';
   const trips=await db.get('trips',{order:'start_date.desc',limit:50});
   S.trips=trips;
+  console.log('trips loaded:', trips.map(t=>({dest:t.destination,country:t.country_name,status:t.status})));
 
   // Build header
   el.innerHTML='';
@@ -1611,6 +1612,7 @@ async function renderWorldMapD3(visitedDests, containerId){
   };
 
   const visitedIds=new Set();
+  console.log('visitedDests:', visitedDests);
   visitedDests.forEach(dest=>{
     const d=dest.toLowerCase().trim();
     if(COUNTRY_MAP[d])visitedIds.add(COUNTRY_MAP[d]);
@@ -1618,6 +1620,7 @@ async function renderWorldMapD3(visitedDests, containerId){
       if(d.includes(key)||key.includes(d))visitedIds.add(id);
     });
   });
+  console.log('visitedIds:', Array.from(visitedIds));
 
   try{
     // Load TopoJSON library first
