@@ -1471,7 +1471,11 @@ async function renderTrips(){
   el.appendChild(header);
 
   // World map card
-  const visitedCountries=trips.filter(t=>t.status==='completed').map(t=>(t.country_name||t.destination||'').toLowerCase());
+  const visitedCountries=trips.filter(t=>t.status==='completed').map(t=>{
+    // Use country_name if set, otherwise try to detect from destination
+    const country=t.country_name||t.destination||'';
+    return country.toLowerCase().trim();
+  }).filter(Boolean);
   const mapCard=document.createElement('div');
   mapCard.className='card';mapCard.style.marginBottom='16px';
   mapCard.innerHTML='<div class="card-label" style="margin-bottom:8px">Países visitados · '+visitedCountries.length+' destinos</div>'+buildWorldMapSVG(visitedCountries);
