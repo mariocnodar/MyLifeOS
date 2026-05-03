@@ -312,7 +312,8 @@
 <div id="modal-trip" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-trip')">
   <div class="modal">
     <div class="modal-title"><span id="trip-modal-title">Nuevo viaje</span><button class="modal-close" onclick="closeModal('modal-trip')">×</button></div>
-    <div class="field"><label>Destino</label><input type="text" id="trip-dest" placeholder="París, Tokio..."/></div>
+    <div class="field"><label>Ciudad / Destino</label><input type="text" id="trip-dest" placeholder="ej: Hamburgo"/></div>
+    <div class="field"><label>País</label><input type="text" id="trip-country" placeholder="ej: Alemania (para colorear el mapa)"/></div>
     <div class="field"><label>Frase resumen</label><input type="text" id="trip-summary" placeholder="El viaje que cambió mi perspectiva..."/></div>
     <div class="grid2" style="gap:10px">
       <div class="field"><label>Inicio</label><input type="date" id="trip-start"/></div>
@@ -1470,7 +1471,7 @@ async function renderTrips(){
   el.appendChild(header);
 
   // World map card
-  const visitedCountries=trips.filter(t=>t.status==='completed').map(t=>t.destination.toLowerCase());
+  const visitedCountries=trips.filter(t=>t.status==='completed').map(t=>(t.country_name||t.destination||'').toLowerCase());
   const mapCard=document.createElement('div');
   mapCard.className='card';mapCard.style.marginBottom='16px';
   mapCard.innerHTML='<div class="card-label" style="margin-bottom:8px">Países visitados · '+visitedCountries.length+' destinos</div>'+buildWorldMapSVG(visitedCountries);
@@ -1711,11 +1712,19 @@ async function uploadTripPhoto(input){
         'apikey':SUPABASE_KEY,
         'Authorization':'Bearer '+SUPABASE_KEY,
         'Content-Type':file.type,
+        'cache-control':'3600',
         'x-upsert':'true'
       },
       body:file
     });
-    if(!uploadResp.ok){const err=await uploadResp.json();throw new Error(err.message||'Upload failed');}
+    if(!uploadResp.ok){
+      const err=await uploadResp.json();
+      // If RLS error, show helpful message
+      if(err.message&&err.message.includes('row-level security')){
+        throw new Error('Falta configurar permisos en Supabase Storage. Ve a Storage → trip-photos → Policies y añade una política de INSERT pública.');
+      }
+      throw new Error(err.message||'Upload failed');
+    }
     // Get public URL
     const publicUrl=SUPABASE_URL+'/storage/v1/object/public/trip-photos/'+filename;
     photoInput.value=publicUrl;
